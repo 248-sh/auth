@@ -1,0 +1,94 @@
+env:
+  PREFIX: auth
+on:
+  push:
+    branches:
+      - main
+    # paths:
+    #   - src/**
+    # tags:
+    #   - v*
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            admin:
+              - src/admin/**
+            website:
+              - src/website/**
+  builds:
+    needs:
+      - changes
+    if: ${{ needs.changes.outputs.packages != '[]' && needs.changes.outputs.packages != '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
+    outputs:
+      tag: ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v4
+        id: meta
+        with:
+          images: ghcr.io/248-sh/${{ env.PREFIX }}-${{ matrix.package }}
+          tags: |
+            type=sha,format=short
+      - uses: docker/build-push-action@v3
+        with:
+          file: ./src/${{ matrix.package }}/Dockerfile
+          context: ./src
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+  argocd:
+    needs:
+      - changes
+      - builds
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: mikefarah/yq@v4.29.2
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.REPO_ARGOCD_PRIVATE_KEY }}
+      - uses: actions/checkout@v3
+        with:
+          repository: 248-sh/argocd
+          ref: main
+          ssh-key: ${{ secrets.REPO_ARGOCD_PRIVATE_KEY }}
+          persist-credentials: false
+      - env:
+          SCOPE: build(github-actions)${{ format(':') }}
+          K: ${{ env.PREFIX }}/${{ matrix.package }}
+          TAG: ${{ needs.builds.outputs.tag }}
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          yq -i '.images[0].newTag = strenv(TAG)' $K/kustomization.yaml
+          git add $K/kustomization.yaml
+          git commit -m "$SCOPE change $K image tag to $TAG"
+          git push origin main

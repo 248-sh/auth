@@ -1,0 +1,46 @@
+{
+  "private": true,
+  "sideEffects": false,
+  "scripts": {
+    "build": "npm run build:css && remix build",
+    "build:css": "tailwindcss -m -i ./app/styles.css -o app/generated.css",
+    "dev": "concurrently \"npm run dev:css\" \"remix dev\"",
+    "dev:css": "tailwindcss -w -i ./app/styles.css -o app/generated.css",
+    "start": "remix-serve build"
+  },
+  "dependencies": {
+    "@headlessui/react": "^1.7.4",
+    "@heroicons/react": "^2.0.13",
+    "@ory/client": "^0.2.0-alpha.60",
+    "@ory/hydra-client": "^2.0.2",
+    "@ory/keto-client": "^0.10.0-alpha.0",
+    "@ory/kratos-client": "^0.0.0-next.a36dda23f209",
+    "@ory/oathkeeper-client": "^0.39.4",
+    "@remix-run/node": "^1.7.6",
+    "@remix-run/react": "^1.7.6",
+    "@remix-run/serve": "^1.7.6",
+    "@tailwindcss/forms": "^0.5.3",
+    "date-fns": "^2.29.3",
+    "isbot": "^3.6.5",
+    "js-cookie": "^3.0.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remix-typedjson": "^0.1.6",
+    "zod": "^3.19.1"
+  },
+  "devDependencies": {
+    "@remix-run/dev": "^1.7.6",
+    "@remix-run/eslint-config": "^1.7.6",
+    "@types/react": "^18.0.15",
+    "@types/react-dom": "^18.0.9",
+    "autoprefixer": "^10.4.13",
+    "concurrently": "^7.5.0",
+    "eslint": "^8.23.1",
+    "postcss": "^8.4.19",
+    "tailwindcss": "^3.2.4",
+    "typescript": "^4.9.3"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}
