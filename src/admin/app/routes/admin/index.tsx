@@ -4,6 +4,7 @@ import {
   EnvelopeIcon,
   UserIcon,
 } from "@heroicons/react/20/solid";
+import { LoaderFunction } from "@remix-run/node";
 import { Link } from "@remix-run/react";
 import { format, parseISO } from "date-fns";
 import { typedjson, useTypedLoaderData } from "remix-typedjson";
@@ -18,7 +19,12 @@ import { join } from "~/utils";
 
 export { default as ErrorBoundary } from "~/modules/ErrorBoundary";
 
-export const loader = async () => {
+export const loader: LoaderFunction = async ({ context, params, request }) => {
+  console.log("loader context", context);
+  console.log("loader params", params);
+  console.log("loader request.headers", request.headers);
+  // console.log("loader request", request);
+
   const [identities] = await Promise.all([kratos.adminListIdentities()]);
 
   return typedjson({ users: identities.data } as const);

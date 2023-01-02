@@ -30,7 +30,7 @@ EXPOSE 3000
 COPY --from=production-deps /app/node_modules /app/node_modules
 COPY --from=production-deps /app/package.json /app/package.json
 COPY --from=production-deps /app/package-lock.json /app/package-lock.json
-COPY --from=build /app/build /app/build
+COPY --from=build /app/admin /app/admin
 COPY --from=build /app/public /app/public
 
 CMD ["npm", "start"]
