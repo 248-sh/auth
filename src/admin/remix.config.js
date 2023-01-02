@@ -5,4 +5,5 @@ module.exports = {
   ignoredRouteFiles: ["**/.*"],
   publicPath: "/admin/build/",
   serverBuildPath: "admin/build/index.js",
+  serverBuildTarget: "node-cjs",
 };
