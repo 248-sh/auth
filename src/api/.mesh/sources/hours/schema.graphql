@@ -1,0 +1,1378 @@
+schema {
+  query: Query
+  subscription: Subscription
+}
+
+"""The root query type which gives access points into the data universe."""
+type Query implements Node {
+  """
+  Exposes the root query type nested one level down. This is helpful for Relay 1
+  which can only query top level fields if they are in a particular form.
+  """
+  query: Query!
+  """
+  The root query type must be a `Node` to work well with Relay 1 mutations. This just resolves to `query`.
+  """
+  nodeId: ID!
+  """Fetches an object given its globally unique `ID`."""
+  node(
+    """The globally unique `ID`."""
+    nodeId: ID!
+  ): Node
+  """Reads and enables pagination through a set of `Client`."""
+  clients(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Client`."""
+    orderBy: [ClientsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: ClientCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: ClientFilter
+  ): ClientsConnection
+  """Reads and enables pagination through a set of `Entry`."""
+  entries(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Entry`."""
+    orderBy: [EntriesOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: EntryCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: EntryFilter
+  ): EntriesConnection
+  """Reads and enables pagination through a set of `EntryTag`."""
+  entryTags(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `EntryTag`."""
+    orderBy: [EntryTagsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: EntryTagCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: EntryTagFilter
+  ): EntryTagsConnection
+  """Reads and enables pagination through a set of `Project`."""
+  projects(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Project`."""
+    orderBy: [ProjectsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: ProjectCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: ProjectFilter
+  ): ProjectsConnection
+  """Reads and enables pagination through a set of `SchemaMigration`."""
+  schemaMigrations(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `SchemaMigration`."""
+    orderBy: [SchemaMigrationsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: SchemaMigrationCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: SchemaMigrationFilter
+  ): SchemaMigrationsConnection
+  """Reads and enables pagination through a set of `Tag`."""
+  tags(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Tag`."""
+    orderBy: [TagsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: TagCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: TagFilter
+  ): TagsConnection
+  client(userId: String!, id: String!): Client
+  clientByName(name: String!): Client
+  entry(userId: String!, id: String!): Entry
+  entryTag(userId: String!, entryId: String!, tagId: String!): EntryTag
+  project(userId: String!, id: String!): Project
+  projectByName(name: String!): Project
+  schemaMigration(version: BigInt!): SchemaMigration
+  tag(userId: String!, id: String!): Tag
+  tagByName(name: String!): Tag
+  """Reads a single `Client` using its globally unique `ID`."""
+  clientByNodeId(
+    """The globally unique `ID` to be used in selecting a single `Client`."""
+    nodeId: ID!
+  ): Client
+  """Reads a single `Entry` using its globally unique `ID`."""
+  entryByNodeId(
+    """The globally unique `ID` to be used in selecting a single `Entry`."""
+    nodeId: ID!
+  ): Entry
+  """Reads a single `EntryTag` using its globally unique `ID`."""
+  entryTagByNodeId(
+    """The globally unique `ID` to be used in selecting a single `EntryTag`."""
+    nodeId: ID!
+  ): EntryTag
+  """Reads a single `Project` using its globally unique `ID`."""
+  projectByNodeId(
+    """The globally unique `ID` to be used in selecting a single `Project`."""
+    nodeId: ID!
+  ): Project
+  """Reads a single `SchemaMigration` using its globally unique `ID`."""
+  schemaMigrationByNodeId(
+    """
+    The globally unique `ID` to be used in selecting a single `SchemaMigration`.
+    """
+    nodeId: ID!
+  ): SchemaMigration
+  """Reads a single `Tag` using its globally unique `ID`."""
+  tagByNodeId(
+    """The globally unique `ID` to be used in selecting a single `Tag`."""
+    nodeId: ID!
+  ): Tag
+}
+
+"""An object with a globally unique `ID`."""
+interface Node {
+  """
+  A globally unique identifier. Can be used in various places throughout the system to identify this single value.
+  """
+  nodeId: ID!
+}
+
+"""A connection to a list of `Client` values."""
+type ClientsConnection {
+  """A list of `Client` objects."""
+  nodes: [Client]!
+  """
+  A list of edges which contains the `Client` and cursor to aid in pagination.
+  """
+  edges: [ClientsEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The count of *all* `Client` you could get from the connection."""
+  totalCount: Int!
+}
+
+type Client implements Node {
+  """
+  A globally unique identifier. Can be used in various places throughout the system to identify this single value.
+  """
+  nodeId: ID!
+  userId: String!
+  id: String!
+  name: String!
+  """Reads and enables pagination through a set of `Project`."""
+  projectsByUserIdAndClientId(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Project`."""
+    orderBy: [ProjectsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: ProjectCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: ProjectFilter
+  ): ProjectsConnection!
+  """Reads and enables pagination through a set of `Project`."""
+  projectsByUserIdAndClientIdList(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Skip the first `n` values."""
+    offset: Int
+    """The method to use when ordering `Project`."""
+    orderBy: [ProjectsOrderBy!]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: ProjectCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: ProjectFilter
+  ): [Project!]!
+}
+
+"""A connection to a list of `Project` values."""
+type ProjectsConnection {
+  """A list of `Project` objects."""
+  nodes: [Project]!
+  """
+  A list of edges which contains the `Project` and cursor to aid in pagination.
+  """
+  edges: [ProjectsEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The count of *all* `Project` you could get from the connection."""
+  totalCount: Int!
+}
+
+type Project implements Node {
+  """
+  A globally unique identifier. Can be used in various places throughout the system to identify this single value.
+  """
+  nodeId: ID!
+  userId: String!
+  id: String!
+  name: String!
+  clientId: String
+  """Reads a single `Client` that is related to this `Project`."""
+  userClient: Client
+}
+
+"""A `Project` edge in the connection."""
+type ProjectsEdge {
+  """A cursor for use in pagination."""
+  cursor: Cursor
+  """The `Project` at the end of the edge."""
+  node: Project
+}
+
+"""A location in a connection that can be used for resuming pagination."""
+scalar Cursor
+
+"""Information about pagination in a connection."""
+type PageInfo {
+  """When paginating forwards, are there more items?"""
+  hasNextPage: Boolean!
+  """When paginating backwards, are there more items?"""
+  hasPreviousPage: Boolean!
+  """When paginating backwards, the cursor to continue."""
+  startCursor: Cursor
+  """When paginating forwards, the cursor to continue."""
+  endCursor: Cursor
+}
+
+"""Methods to use when ordering `Project`."""
+enum ProjectsOrderBy {
+  NATURAL
+  USER_ID_ASC
+  USER_ID_DESC
+  ID_ASC
+  ID_DESC
+  NAME_ASC
+  NAME_DESC
+  CLIENT_ID_ASC
+  CLIENT_ID_DESC
+  PRIMARY_KEY_ASC
+  PRIMARY_KEY_DESC
+}
+
+"""
+A condition to be used against `Project` object types. All fields are tested for equality and combined with a logical ‘and.’
+"""
+input ProjectCondition {
+  """Checks for equality with the object’s `userId` field."""
+  userId: String
+  """Checks for equality with the object’s `id` field."""
+  id: String
+  """Checks for equality with the object’s `name` field."""
+  name: String
+  """Checks for equality with the object’s `clientId` field."""
+  clientId: String
+}
+
+"""
+A filter to be used against `Project` object types. All fields are combined with a logical ‘and.’
+"""
+input ProjectFilter {
+  """Filter by the object’s `userId` field."""
+  userId: StringFilter
+  """Filter by the object’s `id` field."""
+  id: StringFilter
+  """Filter by the object’s `name` field."""
+  name: StringFilter
+  """Filter by the object’s `clientId` field."""
+  clientId: StringFilter
+  """Checks for all expressions in this list."""
+  and: [ProjectFilter!]
+  """Checks for any expressions in this list."""
+  or: [ProjectFilter!]
+  """Negates the expression."""
+  not: ProjectFilter
+}
+
+"""
+A filter to be used against String fields. All fields are combined with a logical ‘and.’
+"""
+input StringFilter {
+  """
+  Is null (if `true` is specified) or is not null (if `false` is specified).
+  """
+  isNull: Boolean
+  """Equal to the specified value."""
+  equalTo: String
+  """Not equal to the specified value."""
+  notEqualTo: String
+  """
+  Not equal to the specified value, treating null like an ordinary value.
+  """
+  distinctFrom: String
+  """Equal to the specified value, treating null like an ordinary value."""
+  notDistinctFrom: String
+  """Included in the specified list."""
+  in: [String!]
+  """Not included in the specified list."""
+  notIn: [String!]
+  """Less than the specified value."""
+  lessThan: String
+  """Less than or equal to the specified value."""
+  lessThanOrEqualTo: String
+  """Greater than the specified value."""
+  greaterThan: String
+  """Greater than or equal to the specified value."""
+  greaterThanOrEqualTo: String
+  """Contains the specified string (case-sensitive)."""
+  includes: String
+  """Does not contain the specified string (case-sensitive)."""
+  notIncludes: String
+  """Contains the specified string (case-insensitive)."""
+  includesInsensitive: String
+  """Does not contain the specified string (case-insensitive)."""
+  notIncludesInsensitive: String
+  """Starts with the specified string (case-sensitive)."""
+  startsWith: String
+  """Does not start with the specified string (case-sensitive)."""
+  notStartsWith: String
+  """Starts with the specified string (case-insensitive)."""
+  startsWithInsensitive: String
+  """Does not start with the specified string (case-insensitive)."""
+  notStartsWithInsensitive: String
+  """Ends with the specified string (case-sensitive)."""
+  endsWith: String
+  """Does not end with the specified string (case-sensitive)."""
+  notEndsWith: String
+  """Ends with the specified string (case-insensitive)."""
+  endsWithInsensitive: String
+  """Does not end with the specified string (case-insensitive)."""
+  notEndsWithInsensitive: String
+  """
+  Matches the specified pattern (case-sensitive). An underscore (_) matches any single character; a percent sign (%) matches any sequence of zero or more characters.
+  """
+  like: String
+  """
+  Does not match the specified pattern (case-sensitive). An underscore (_) matches any single character; a percent sign (%) matches any sequence of zero or more characters.
+  """
+  notLike: String
+  """
+  Matches the specified pattern (case-insensitive). An underscore (_) matches any single character; a percent sign (%) matches any sequence of zero or more characters.
+  """
+  likeInsensitive: String
+  """
+  Does not match the specified pattern (case-insensitive). An underscore (_) matches any single character; a percent sign (%) matches any sequence of zero or more characters.
+  """
+  notLikeInsensitive: String
+  """Equal to the specified value (case-insensitive)."""
+  equalToInsensitive: String
+  """Not equal to the specified value (case-insensitive)."""
+  notEqualToInsensitive: String
+  """
+  Not equal to the specified value, treating null like an ordinary value (case-insensitive).
+  """
+  distinctFromInsensitive: String
+  """
+  Equal to the specified value, treating null like an ordinary value (case-insensitive).
+  """
+  notDistinctFromInsensitive: String
+  """Included in the specified list (case-insensitive)."""
+  inInsensitive: [String!]
+  """Not included in the specified list (case-insensitive)."""
+  notInInsensitive: [String!]
+  """Less than the specified value (case-insensitive)."""
+  lessThanInsensitive: String
+  """Less than or equal to the specified value (case-insensitive)."""
+  lessThanOrEqualToInsensitive: String
+  """Greater than the specified value (case-insensitive)."""
+  greaterThanInsensitive: String
+  """Greater than or equal to the specified value (case-insensitive)."""
+  greaterThanOrEqualToInsensitive: String
+}
+
+"""A `Client` edge in the connection."""
+type ClientsEdge {
+  """A cursor for use in pagination."""
+  cursor: Cursor
+  """The `Client` at the end of the edge."""
+  node: Client
+}
+
+"""Methods to use when ordering `Client`."""
+enum ClientsOrderBy {
+  NATURAL
+  USER_ID_ASC
+  USER_ID_DESC
+  ID_ASC
+  ID_DESC
+  NAME_ASC
+  NAME_DESC
+  PRIMARY_KEY_ASC
+  PRIMARY_KEY_DESC
+}
+
+"""
+A condition to be used against `Client` object types. All fields are tested for equality and combined with a logical ‘and.’
+"""
+input ClientCondition {
+  """Checks for equality with the object’s `userId` field."""
+  userId: String
+  """Checks for equality with the object’s `id` field."""
+  id: String
+  """Checks for equality with the object’s `name` field."""
+  name: String
+}
+
+"""
+A filter to be used against `Client` object types. All fields are combined with a logical ‘and.’
+"""
+input ClientFilter {
+  """Filter by the object’s `userId` field."""
+  userId: StringFilter
+  """Filter by the object’s `id` field."""
+  id: StringFilter
+  """Filter by the object’s `name` field."""
+  name: StringFilter
+  """Checks for all expressions in this list."""
+  and: [ClientFilter!]
+  """Checks for any expressions in this list."""
+  or: [ClientFilter!]
+  """Negates the expression."""
+  not: ClientFilter
+}
+
+"""A connection to a list of `Entry` values."""
+type EntriesConnection {
+  """A list of `Entry` objects."""
+  nodes: [Entry]!
+  """
+  A list of edges which contains the `Entry` and cursor to aid in pagination.
+  """
+  edges: [EntriesEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The count of *all* `Entry` you could get from the connection."""
+  totalCount: Int!
+}
+
+type Entry implements Node {
+  """
+  A globally unique identifier. Can be used in various places throughout the system to identify this single value.
+  """
+  nodeId: ID!
+  userId: String!
+  id: String!
+  start: Datetime!
+  status: Int!
+  description: String
+  lastStart: Datetime!
+  lastStop: Datetime
+  lastDuration: Int!
+  totalDuration: Int!
+  projectId: String
+}
+
+"""
+A point in time as described by the [ISO
+8601](https://en.wikipedia.org/wiki/ISO_8601) standard. May or may not include a timezone.
+"""
+scalar Datetime
+
+"""A `Entry` edge in the connection."""
+type EntriesEdge {
+  """A cursor for use in pagination."""
+  cursor: Cursor
+  """The `Entry` at the end of the edge."""
+  node: Entry
+}
+
+"""Methods to use when ordering `Entry`."""
+enum EntriesOrderBy {
+  NATURAL
+  USER_ID_ASC
+  USER_ID_DESC
+  ID_ASC
+  ID_DESC
+  START_ASC
+  START_DESC
+  STATUS_ASC
+  STATUS_DESC
+  DESCRIPTION_ASC
+  DESCRIPTION_DESC
+  LAST_START_ASC
+  LAST_START_DESC
+  LAST_STOP_ASC
+  LAST_STOP_DESC
+  LAST_DURATION_ASC
+  LAST_DURATION_DESC
+  TOTAL_DURATION_ASC
+  TOTAL_DURATION_DESC
+  PROJECT_ID_ASC
+  PROJECT_ID_DESC
+  PRIMARY_KEY_ASC
+  PRIMARY_KEY_DESC
+}
+
+"""
+A condition to be used against `Entry` object types. All fields are tested for equality and combined with a logical ‘and.’
+"""
+input EntryCondition {
+  """Checks for equality with the object’s `userId` field."""
+  userId: String
+  """Checks for equality with the object’s `id` field."""
+  id: String
+  """Checks for equality with the object’s `start` field."""
+  start: Datetime
+  """Checks for equality with the object’s `status` field."""
+  status: Int
+  """Checks for equality with the object’s `description` field."""
+  description: String
+  """Checks for equality with the object’s `lastStart` field."""
+  lastStart: Datetime
+  """Checks for equality with the object’s `lastStop` field."""
+  lastStop: Datetime
+  """Checks for equality with the object’s `lastDuration` field."""
+  lastDuration: Int
+  """Checks for equality with the object’s `totalDuration` field."""
+  totalDuration: Int
+  """Checks for equality with the object’s `projectId` field."""
+  projectId: String
+}
+
+"""
+A filter to be used against `Entry` object types. All fields are combined with a logical ‘and.’
+"""
+input EntryFilter {
+  """Filter by the object’s `userId` field."""
+  userId: StringFilter
+  """Filter by the object’s `id` field."""
+  id: StringFilter
+  """Filter by the object’s `start` field."""
+  start: DatetimeFilter
+  """Filter by the object’s `status` field."""
+  status: IntFilter
+  """Filter by the object’s `description` field."""
+  description: StringFilter
+  """Filter by the object’s `lastStart` field."""
+  lastStart: DatetimeFilter
+  """Filter by the object’s `lastStop` field."""
+  lastStop: DatetimeFilter
+  """Filter by the object’s `lastDuration` field."""
+  lastDuration: IntFilter
+  """Filter by the object’s `totalDuration` field."""
+  totalDuration: IntFilter
+  """Filter by the object’s `projectId` field."""
+  projectId: StringFilter
+  """Checks for all expressions in this list."""
+  and: [EntryFilter!]
+  """Checks for any expressions in this list."""
+  or: [EntryFilter!]
+  """Negates the expression."""
+  not: EntryFilter
+}
+
+"""
+A filter to be used against Datetime fields. All fields are combined with a logical ‘and.’
+"""
+input DatetimeFilter {
+  """
+  Is null (if `true` is specified) or is not null (if `false` is specified).
+  """
+  isNull: Boolean
+  """Equal to the specified value."""
+  equalTo: Datetime
+  """Not equal to the specified value."""
+  notEqualTo: Datetime
+  """
+  Not equal to the specified value, treating null like an ordinary value.
+  """
+  distinctFrom: Datetime
+  """Equal to the specified value, treating null like an ordinary value."""
+  notDistinctFrom: Datetime
+  """Included in the specified list."""
+  in: [Datetime!]
+  """Not included in the specified list."""
+  notIn: [Datetime!]
+  """Less than the specified value."""
+  lessThan: Datetime
+  """Less than or equal to the specified value."""
+  lessThanOrEqualTo: Datetime
+  """Greater than the specified value."""
+  greaterThan: Datetime
+  """Greater than or equal to the specified value."""
+  greaterThanOrEqualTo: Datetime
+}
+
+"""
+A filter to be used against Int fields. All fields are combined with a logical ‘and.’
+"""
+input IntFilter {
+  """
+  Is null (if `true` is specified) or is not null (if `false` is specified).
+  """
+  isNull: Boolean
+  """Equal to the specified value."""
+  equalTo: Int
+  """Not equal to the specified value."""
+  notEqualTo: Int
+  """
+  Not equal to the specified value, treating null like an ordinary value.
+  """
+  distinctFrom: Int
+  """Equal to the specified value, treating null like an ordinary value."""
+  notDistinctFrom: Int
+  """Included in the specified list."""
+  in: [Int!]
+  """Not included in the specified list."""
+  notIn: [Int!]
+  """Less than the specified value."""
+  lessThan: Int
+  """Less than or equal to the specified value."""
+  lessThanOrEqualTo: Int
+  """Greater than the specified value."""
+  greaterThan: Int
+  """Greater than or equal to the specified value."""
+  greaterThanOrEqualTo: Int
+}
+
+"""A connection to a list of `EntryTag` values."""
+type EntryTagsConnection {
+  """A list of `EntryTag` objects."""
+  nodes: [EntryTag]!
+  """
+  A list of edges which contains the `EntryTag` and cursor to aid in pagination.
+  """
+  edges: [EntryTagsEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The count of *all* `EntryTag` you could get from the connection."""
+  totalCount: Int!
+}
+
+type EntryTag implements Node {
+  """
+  A globally unique identifier. Can be used in various places throughout the system to identify this single value.
+  """
+  nodeId: ID!
+  userId: String!
+  entryId: String!
+  tagId: String!
+}
+
+"""A `EntryTag` edge in the connection."""
+type EntryTagsEdge {
+  """A cursor for use in pagination."""
+  cursor: Cursor
+  """The `EntryTag` at the end of the edge."""
+  node: EntryTag
+}
+
+"""Methods to use when ordering `EntryTag`."""
+enum EntryTagsOrderBy {
+  NATURAL
+  USER_ID_ASC
+  USER_ID_DESC
+  ENTRY_ID_ASC
+  ENTRY_ID_DESC
+  TAG_ID_ASC
+  TAG_ID_DESC
+  PRIMARY_KEY_ASC
+  PRIMARY_KEY_DESC
+}
+
+"""
+A condition to be used against `EntryTag` object types. All fields are tested
+for equality and combined with a logical ‘and.’
+"""
+input EntryTagCondition {
+  """Checks for equality with the object’s `userId` field."""
+  userId: String
+  """Checks for equality with the object’s `entryId` field."""
+  entryId: String
+  """Checks for equality with the object’s `tagId` field."""
+  tagId: String
+}
+
+"""
+A filter to be used against `EntryTag` object types. All fields are combined with a logical ‘and.’
+"""
+input EntryTagFilter {
+  """Filter by the object’s `userId` field."""
+  userId: StringFilter
+  """Filter by the object’s `entryId` field."""
+  entryId: StringFilter
+  """Filter by the object’s `tagId` field."""
+  tagId: StringFilter
+  """Checks for all expressions in this list."""
+  and: [EntryTagFilter!]
+  """Checks for any expressions in this list."""
+  or: [EntryTagFilter!]
+  """Negates the expression."""
+  not: EntryTagFilter
+}
+
+"""A connection to a list of `SchemaMigration` values."""
+type SchemaMigrationsConnection {
+  """A list of `SchemaMigration` objects."""
+  nodes: [SchemaMigration]!
+  """
+  A list of edges which contains the `SchemaMigration` and cursor to aid in pagination.
+  """
+  edges: [SchemaMigrationsEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """
+  The count of *all* `SchemaMigration` you could get from the connection.
+  """
+  totalCount: Int!
+}
+
+type SchemaMigration implements Node {
+  """
+  A globally unique identifier. Can be used in various places throughout the system to identify this single value.
+  """
+  nodeId: ID!
+  version: BigInt!
+  dirty: Boolean!
+}
+
+"""
+A signed eight-byte integer. The upper big integer values are greater than the
+max value for a JavaScript number. Therefore all big integers will be output as
+strings and not numbers.
+"""
+scalar BigInt
+
+"""A `SchemaMigration` edge in the connection."""
+type SchemaMigrationsEdge {
+  """A cursor for use in pagination."""
+  cursor: Cursor
+  """The `SchemaMigration` at the end of the edge."""
+  node: SchemaMigration
+}
+
+"""Methods to use when ordering `SchemaMigration`."""
+enum SchemaMigrationsOrderBy {
+  NATURAL
+  VERSION_ASC
+  VERSION_DESC
+  DIRTY_ASC
+  DIRTY_DESC
+  PRIMARY_KEY_ASC
+  PRIMARY_KEY_DESC
+}
+
+"""
+A condition to be used against `SchemaMigration` object types. All fields are
+tested for equality and combined with a logical ‘and.’
+"""
+input SchemaMigrationCondition {
+  """Checks for equality with the object’s `version` field."""
+  version: BigInt
+  """Checks for equality with the object’s `dirty` field."""
+  dirty: Boolean
+}
+
+"""
+A filter to be used against `SchemaMigration` object types. All fields are combined with a logical ‘and.’
+"""
+input SchemaMigrationFilter {
+  """Filter by the object’s `version` field."""
+  version: BigIntFilter
+  """Filter by the object’s `dirty` field."""
+  dirty: BooleanFilter
+  """Checks for all expressions in this list."""
+  and: [SchemaMigrationFilter!]
+  """Checks for any expressions in this list."""
+  or: [SchemaMigrationFilter!]
+  """Negates the expression."""
+  not: SchemaMigrationFilter
+}
+
+"""
+A filter to be used against BigInt fields. All fields are combined with a logical ‘and.’
+"""
+input BigIntFilter {
+  """
+  Is null (if `true` is specified) or is not null (if `false` is specified).
+  """
+  isNull: Boolean
+  """Equal to the specified value."""
+  equalTo: BigInt
+  """Not equal to the specified value."""
+  notEqualTo: BigInt
+  """
+  Not equal to the specified value, treating null like an ordinary value.
+  """
+  distinctFrom: BigInt
+  """Equal to the specified value, treating null like an ordinary value."""
+  notDistinctFrom: BigInt
+  """Included in the specified list."""
+  in: [BigInt!]
+  """Not included in the specified list."""
+  notIn: [BigInt!]
+  """Less than the specified value."""
+  lessThan: BigInt
+  """Less than or equal to the specified value."""
+  lessThanOrEqualTo: BigInt
+  """Greater than the specified value."""
+  greaterThan: BigInt
+  """Greater than or equal to the specified value."""
+  greaterThanOrEqualTo: BigInt
+}
+
+"""
+A filter to be used against Boolean fields. All fields are combined with a logical ‘and.’
+"""
+input BooleanFilter {
+  """
+  Is null (if `true` is specified) or is not null (if `false` is specified).
+  """
+  isNull: Boolean
+  """Equal to the specified value."""
+  equalTo: Boolean
+  """Not equal to the specified value."""
+  notEqualTo: Boolean
+  """
+  Not equal to the specified value, treating null like an ordinary value.
+  """
+  distinctFrom: Boolean
+  """Equal to the specified value, treating null like an ordinary value."""
+  notDistinctFrom: Boolean
+  """Included in the specified list."""
+  in: [Boolean!]
+  """Not included in the specified list."""
+  notIn: [Boolean!]
+  """Less than the specified value."""
+  lessThan: Boolean
+  """Less than or equal to the specified value."""
+  lessThanOrEqualTo: Boolean
+  """Greater than the specified value."""
+  greaterThan: Boolean
+  """Greater than or equal to the specified value."""
+  greaterThanOrEqualTo: Boolean
+}
+
+"""A connection to a list of `Tag` values."""
+type TagsConnection {
+  """A list of `Tag` objects."""
+  nodes: [Tag]!
+  """
+  A list of edges which contains the `Tag` and cursor to aid in pagination.
+  """
+  edges: [TagsEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The count of *all* `Tag` you could get from the connection."""
+  totalCount: Int!
+}
+
+type Tag implements Node {
+  """
+  A globally unique identifier. Can be used in various places throughout the system to identify this single value.
+  """
+  nodeId: ID!
+  userId: String!
+  id: String!
+  name: String!
+}
+
+"""A `Tag` edge in the connection."""
+type TagsEdge {
+  """A cursor for use in pagination."""
+  cursor: Cursor
+  """The `Tag` at the end of the edge."""
+  node: Tag
+}
+
+"""Methods to use when ordering `Tag`."""
+enum TagsOrderBy {
+  NATURAL
+  USER_ID_ASC
+  USER_ID_DESC
+  ID_ASC
+  ID_DESC
+  NAME_ASC
+  NAME_DESC
+  PRIMARY_KEY_ASC
+  PRIMARY_KEY_DESC
+}
+
+"""
+A condition to be used against `Tag` object types. All fields are tested for equality and combined with a logical ‘and.’
+"""
+input TagCondition {
+  """Checks for equality with the object’s `userId` field."""
+  userId: String
+  """Checks for equality with the object’s `id` field."""
+  id: String
+  """Checks for equality with the object’s `name` field."""
+  name: String
+}
+
+"""
+A filter to be used against `Tag` object types. All fields are combined with a logical ‘and.’
+"""
+input TagFilter {
+  """Filter by the object’s `userId` field."""
+  userId: StringFilter
+  """Filter by the object’s `id` field."""
+  id: StringFilter
+  """Filter by the object’s `name` field."""
+  name: StringFilter
+  """Checks for all expressions in this list."""
+  and: [TagFilter!]
+  """Checks for any expressions in this list."""
+  or: [TagFilter!]
+  """Negates the expression."""
+  not: TagFilter
+}
+
+"""
+The root subscription type: contains events and live queries you can subscribe to with the `subscription` operation.
+
+#### Live Queries
+
+Live query fields are differentiated by containing `(live)` at the end of their
+description, they are added for each field in the `Query` type. When you
+subscribe to a live query field, the selection set will be evaluated and sent to
+the client, and then most things\* that would cause the output of the selection
+set to change will trigger the selection set to be re-evaluated and the results
+to be re-sent to the client.
+
+_(\* Not everything: typically only changes to persisted data referenced by the query are detected, not computed fields.)_
+
+Live queries can be very expensive, so try and keep them small and focussed.
+
+#### Events
+
+Event fields will run their selection set when, and only when, the specified
+server-side event occurs. This makes them a lot more efficient than Live
+Queries, but it is still recommended that you keep payloads fairly small.
+"""
+type Subscription {
+  """
+  Exposes the root query type nested one level down. This is helpful for Relay 1
+  which can only query top level fields if they are in a particular form. (live)
+  """
+  query: Query!
+  """
+  The root query type must be a `Node` to work well with Relay 1 mutations. This just resolves to `query`. (live)
+  """
+  nodeId: ID!
+  """Fetches an object given its globally unique `ID`. (live)"""
+  node(
+    """The globally unique `ID`."""
+    nodeId: ID!
+  ): Node
+  """Reads and enables pagination through a set of `Client`. (live)"""
+  clients(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Client`."""
+    orderBy: [ClientsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: ClientCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: ClientFilter
+  ): ClientsConnection
+  """Reads a set of `Client`. (live)"""
+  clientsList(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Skip the first `n` values."""
+    offset: Int
+    """The method to use when ordering `Client`."""
+    orderBy: [ClientsOrderBy!]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: ClientCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: ClientFilter
+  ): [Client!]
+  """Reads and enables pagination through a set of `Entry`. (live)"""
+  entries(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Entry`."""
+    orderBy: [EntriesOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: EntryCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: EntryFilter
+  ): EntriesConnection
+  """Reads a set of `Entry`. (live)"""
+  entriesList(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Skip the first `n` values."""
+    offset: Int
+    """The method to use when ordering `Entry`."""
+    orderBy: [EntriesOrderBy!]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: EntryCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: EntryFilter
+  ): [Entry!]
+  """Reads and enables pagination through a set of `EntryTag`. (live)"""
+  entryTags(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `EntryTag`."""
+    orderBy: [EntryTagsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: EntryTagCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: EntryTagFilter
+  ): EntryTagsConnection
+  """Reads a set of `EntryTag`. (live)"""
+  entryTagsList(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Skip the first `n` values."""
+    offset: Int
+    """The method to use when ordering `EntryTag`."""
+    orderBy: [EntryTagsOrderBy!]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: EntryTagCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: EntryTagFilter
+  ): [EntryTag!]
+  """Reads and enables pagination through a set of `Project`. (live)"""
+  projects(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Project`."""
+    orderBy: [ProjectsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: ProjectCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: ProjectFilter
+  ): ProjectsConnection
+  """Reads a set of `Project`. (live)"""
+  projectsList(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Skip the first `n` values."""
+    offset: Int
+    """The method to use when ordering `Project`."""
+    orderBy: [ProjectsOrderBy!]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: ProjectCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: ProjectFilter
+  ): [Project!]
+  """
+  Reads and enables pagination through a set of `SchemaMigration`. (live)
+  """
+  schemaMigrations(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `SchemaMigration`."""
+    orderBy: [SchemaMigrationsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: SchemaMigrationCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: SchemaMigrationFilter
+  ): SchemaMigrationsConnection
+  """Reads a set of `SchemaMigration`. (live)"""
+  schemaMigrationsList(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Skip the first `n` values."""
+    offset: Int
+    """The method to use when ordering `SchemaMigration`."""
+    orderBy: [SchemaMigrationsOrderBy!]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: SchemaMigrationCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: SchemaMigrationFilter
+  ): [SchemaMigration!]
+  """Reads and enables pagination through a set of `Tag`. (live)"""
+  tags(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Only read the last `n` values of the set."""
+    last: Int
+    """
+    Skip the first `n` values from our `after` cursor, an alternative to cursor
+    based pagination. May not be used with `last`.
+    """
+    offset: Int
+    """Read all values in the set before (above) this cursor."""
+    before: Cursor
+    """Read all values in the set after (below) this cursor."""
+    after: Cursor
+    """The method to use when ordering `Tag`."""
+    orderBy: [TagsOrderBy!] = [PRIMARY_KEY_ASC]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: TagCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: TagFilter
+  ): TagsConnection
+  """Reads a set of `Tag`. (live)"""
+  tagsList(
+    """Only read the first `n` values of the set."""
+    first: Int
+    """Skip the first `n` values."""
+    offset: Int
+    """The method to use when ordering `Tag`."""
+    orderBy: [TagsOrderBy!]
+    """
+    A condition to be used in determining which values should be returned by the collection.
+    """
+    condition: TagCondition
+    """
+    A filter to be used in determining which values should be returned by the collection.
+    """
+    filter: TagFilter
+  ): [Tag!]
+  """ (live)"""
+  client(userId: String!, id: String!): Client
+  """ (live)"""
+  clientByName(name: String!): Client
+  """ (live)"""
+  entry(userId: String!, id: String!): Entry
+  """ (live)"""
+  entryTag(userId: String!, entryId: String!, tagId: String!): EntryTag
+  """ (live)"""
+  project(userId: String!, id: String!): Project
+  """ (live)"""
+  projectByName(name: String!): Project
+  """ (live)"""
+  schemaMigration(version: BigInt!): SchemaMigration
+  """ (live)"""
+  tag(userId: String!, id: String!): Tag
+  """ (live)"""
+  tagByName(name: String!): Tag
+  """Reads a single `Client` using its globally unique `ID`. (live)"""
+  clientByNodeId(
+    """The globally unique `ID` to be used in selecting a single `Client`."""
+    nodeId: ID!
+  ): Client
+  """Reads a single `Entry` using its globally unique `ID`. (live)"""
+  entryByNodeId(
+    """The globally unique `ID` to be used in selecting a single `Entry`."""
+    nodeId: ID!
+  ): Entry
+  """Reads a single `EntryTag` using its globally unique `ID`. (live)"""
+  entryTagByNodeId(
+    """The globally unique `ID` to be used in selecting a single `EntryTag`."""
+    nodeId: ID!
+  ): EntryTag
+  """Reads a single `Project` using its globally unique `ID`. (live)"""
+  projectByNodeId(
+    """The globally unique `ID` to be used in selecting a single `Project`."""
+    nodeId: ID!
+  ): Project
+  """
+  Reads a single `SchemaMigration` using its globally unique `ID`. (live)
+  """
+  schemaMigrationByNodeId(
+    """
+    The globally unique `ID` to be used in selecting a single `SchemaMigration`.
+    """
+    nodeId: ID!
+  ): SchemaMigration
+  """Reads a single `Tag` using its globally unique `ID`. (live)"""
+  tagByNodeId(
+    """The globally unique `ID` to be used in selecting a single `Tag`."""
+    nodeId: ID!
+  ): Tag
+}

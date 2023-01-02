@@ -1,0 +1,173 @@
+serve:
+  # playground: false
+  browser: false
+sources:
+  - name: keto-read
+    handler:
+      openapi:
+        endpoint: http://localhost:4466
+        # source: https://raw.githubusercontent.com/ory/keto/v0.10.0-alpha.0/spec/api.json
+        source: ./keto-v0.10.0-openapi.json
+    transforms:
+      - encapsulate:
+          name: auth
+          applyTo:
+            query: true
+            mutation: true
+            subscription: true
+  - name: kratos-admin
+    handler:
+      openapi:
+        endpoint: http://localhost:4434
+        # source: https://raw.githubusercontent.com/ory/kratos/v0.11.0/spec/api.json
+        # source: https://raw.githubusercontent.com/ory/kratos/v0.10.1/spec/api.json
+        source: ./kratos-v0.11.0-openapi.json
+        # source: ./kratos-v0.10.1-openapi.json
+        ignoreErrorResponses: true
+    transforms:
+      - rename:
+          - from:
+              type: Identity_represents_an_Ory_Kratos_identity
+            to:
+              type: KratosIdentity
+      - filterSchema:
+          mode: bare
+          filters:
+            - "KratosIdentity.!traits"
+      # - filterSchema:
+      #     # - "Query.identity.!metadata_admin"
+      #     # - "Query.identity.!metadata_public"
+      #     - "KratosIdentity.!traits"
+          # - from:
+          #     type: Query
+          #     field: getLocationById
+          #   to:
+          #     type: Query
+          #     field: location
+      - typeMerging:
+          queryFields:
+            # No need to define which type it belongs
+            # And no need to define a key for type
+            # keyField assigns to that type automatically
+            - queryFieldName: listIdentities
+              # keyField: id
+              keyArg: id # This is needed if you have multiple args for that query field
+      - encapsulate:
+          name: auth
+          applyTo:
+            query: true
+            mutation: true
+            subscription: true
+  - name: kratos-identity-traits
+    handler:
+      jsonSchema:
+        endpoint: http://localhost:4434
+        operations:
+          - type: Query
+            field: listIdentities2
+            path: /admin/identities
+            method: GET
+            # responseSchema: https://id.248.sh/.ory/kratos/public/schemas/ZGVmYXVsdA
+            responseSchema: ./kratos-identity-traits-json-schema.json
+    transforms:
+      - rename:
+          - from:
+              type: Person
+            to:
+              type: KratosIdentity
+          - from:
+              type: query_listIdentities2_traits
+            to:
+              type: KratosIdentityTraits
+          - from:
+              type: query_listIdentities2_traits_name
+            to:
+              type: KratosIdentityTraitsName
+      # - filterSchema:
+      #     - "Query.!listIdentities2"
+      #     # - from:
+      #     #     type: Query
+      #     #     field: getLocationById
+      #     #   to:
+      #     #     type: Query
+      #     #     field: location
+      - encapsulate:
+          name: auth
+          applyTo:
+            query: true
+            mutation: true
+            subscription: true
+  # - name: kratos-identity-traits
+  #   handler:
+  #     jsonSchema:
+  #       endpoint: http://localhost:4434
+  #       operations:
+  #         - type: Query
+  #           field: getIdentity
+  #           path: /admin/identities/{args.id}
+  #           method: GET
+  #           # responseSchema: https://id.248.sh/.ory/kratos/public/schemas/ZGVmYXVsdA
+  #           responseSchema: ./kratos-identity-traits-json-schema.json
+  - name: hours-api
+    handler:
+      openapi:
+        endpoint: http://127.0.0.1:3000
+        # source: http://localhost:3000/swagger/v1/swagger.json
+        source: ./hours-api-openapi.json
+        # ignoreErrorResponses: true
+    transforms:
+      - namingConvention:
+          mode: bare
+          typeNames: pascalCase
+          enumValues: upperCase
+          fieldNames: camelCase
+          fieldArgumentNames: camelCase
+      - encapsulate:
+          name: hours
+          applyTo:
+            query: false
+            mutation: true
+            subscription: false
+  - name: hours
+    handler:
+      postgraphile:
+        connectionString: postgres://hours:hours-password@localhost:5432/hours
+        schemaName:
+          - public
+        options:
+          disableDefaultMutations: true
+          connectionFilterRelations: true
+          enhanceGraphiql: true
+          allowExplain: true
+          dynamicJson: true
+          showErrorStack: json
+          # ignoreIndexes: false
+          # simpleCollection: only
+          # connectionFilterUseListInflectors: true
+          simpleCollection: omit
+
+          # readOnlyConnection:
+          # defaultPaginationCap: 10
+        appendPlugins:
+          # - "@graphile-contrib/pg-many-to-many"
+          - "@graphile-contrib/pg-simplify-inflector"
+          # - "@graphile/pg-aggregates" # peer graphql@">0.6.0 <16" from @graphile/pg-aggregates@0.1.0 breaks with "graphql": "^16.6.0",
+          - "postgraphile-plugin-connection-filter"
+    transforms:
+      - filterSchema:
+          - Query.!*List
+      # - namingConvention:
+      #     mode: bare
+      #     typeNames: pascalCase
+      #     enumValues: upperCase
+      #     fieldNames: camelCase
+      #     fieldArgumentNames: camelCase
+      # - encapsulate:
+      #     name: hours
+      #     applyTo:
+      #       query: true
+      #       mutation: false
+      #       subscription: true
+transforms:
+  - prune:
+      skipPruning: []

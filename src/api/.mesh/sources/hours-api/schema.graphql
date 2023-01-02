@@ -1,0 +1,74 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+directive @globalOptions(sourceName: String, endpoint: String, operationHeaders: ObjMap, queryStringOptions: ObjMap, queryParams: ObjMap) on OBJECT
+
+directive @httpOperation(path: String, operationSpecificHeaders: ObjMap, httpMethod: HttpMethod, isBinary: Boolean, requestBaseBody: ObjMap, queryParamArgMap: ObjMap, queryStringOptionsByParam: ObjMap) on FIELD_DEFINITION
+
+type Query @globalOptions(sourceName: "hours-api", endpoint: "http://127.0.0.1:3000") {
+  dummy: String
+}
+
+type Mutation {
+  hours: hoursMutation!
+}
+
+"The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf)."
+scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
+
+scalar ObjMap
+
+enum HttpMethod {
+  GET
+  HEAD
+  POST
+  PUT
+  DELETE
+  CONNECT
+  OPTIONS
+  TRACE
+  PATCH
+}
+
+type hoursMutation {
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/add-client`\n\n"
+  addClient(name: String!): JSON @httpOperation(path: "/add-client", httpMethod: POST, queryParamArgMap: "{\"name\":\"name\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/remove-client`\n\n"
+  removeClient(id: String!): JSON @httpOperation(path: "/remove-client", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/rename-client`\n\n"
+  renameClient(id: String!, name: String!): JSON @httpOperation(path: "/rename-client", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"name\":\"name\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/start-entry`\n\n"
+  startEntry: JSON @httpOperation(path: "/start-entry", httpMethod: POST)
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/stop-entry`\n\n"
+  stopEntry(id: String!): JSON @httpOperation(path: "/stop-entry", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/remove-entry`\n\n"
+  removeEntry(id: String!): JSON @httpOperation(path: "/remove-entry", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/set-entry-start`\n\n"
+  setEntryStart(id: String!, start: String!): JSON @httpOperation(path: "/set-entry-start", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"start\":\"start\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/set-entry-description`\n\n"
+  setEntryDescription(id: String!, description: String!): JSON @httpOperation(path: "/set-entry-description", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"description\":\"description\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/set-entry-duration`\n\n"
+  setEntryDuration(id: String!, duration: String!): JSON @httpOperation(path: "/set-entry-duration", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"duration\":\"duration\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/set-entry-project`\n\n"
+  setEntryProject(id: String!, projectId: String!): JSON @httpOperation(path: "/set-entry-project", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"projectId\":\"projectId\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/add-entry-tag`\n\n"
+  addEntryTag(id: String!, tagId: String!): JSON @httpOperation(path: "/add-entry-tag", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"tagId\":\"tagId\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/remove-entry-tag`\n\n"
+  removeEntryTag(id: String!, tagId: String!): JSON @httpOperation(path: "/remove-entry-tag", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"tagId\":\"tagId\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/add-project`\n\n"
+  addProject(name: String!): JSON @httpOperation(path: "/add-project", httpMethod: POST, queryParamArgMap: "{\"name\":\"name\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/remove-project`\n\n"
+  removeProject(id: String!): JSON @httpOperation(path: "/remove-project", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/rename-project`\n\n"
+  renameProject(id: String!, name: String!): JSON @httpOperation(path: "/rename-project", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"name\":\"name\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/set-project-client`\n\n"
+  setProjectClient(id: String!, clientId: String!): JSON @httpOperation(path: "/set-project-client", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"clientId\":\"clientId\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/add-tag`\n\n"
+  addTag(name: String!): JSON @httpOperation(path: "/add-tag", httpMethod: POST, queryParamArgMap: "{\"name\":\"name\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/remove-tag`\n\n"
+  removeTag(id: String!): JSON @httpOperation(path: "/remove-tag", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\"}")
+  "\n>**Method**: `POST`\n>**Base URL**: `http://127.0.0.1:3000`\n>**Path**: `/rename-tag`\n\n"
+  renameTag(id: String!, name: String!): JSON @httpOperation(path: "/rename-tag", httpMethod: POST, queryParamArgMap: "{\"id\":\"id\",\"name\":\"name\"}")
+}
