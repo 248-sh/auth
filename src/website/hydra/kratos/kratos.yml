@@ -1,0 +1,85 @@
+cookies:
+  domain: ""
+  path: /
+  same_site: Lax
+
+session:
+  lifespan: 168h
+  cookie:
+    persistent: false
+    path: ""
+    same_site: Lax
+    domain: ""
+  earliest_possible_extend: 168h
+  whoami:
+    required_aal: aal1
+
+serve:
+  public:
+    #    base_url: http://localhost:3000/.ory/kratos/public/
+    base_url: http://localhost:4433/
+  admin:
+    base_url: http://kratos:4434/
+
+selfservice:
+  default_browser_return_url: http://localhost:3000/
+  allowed_return_urls:
+    - http://localhost:3000/
+
+  methods:
+    password:
+      enabled: true
+    oidc:
+      enabled: false
+
+  flows:
+    settings:
+      ui_url: http://localhost:3000/settings
+
+    verification:
+      enabled: true
+      ui_url: http://localhost:3000/verification
+
+    recovery:
+      enabled: true
+      ui_url: http://localhost:3000/recovery
+
+    logout:
+      after:
+        default_browser_return_url: http://localhost:3000/login
+
+    login:
+      ui_url: http://localhost:3000/login
+
+    registration:
+      ui_url: http://localhost:3000/registration
+      after:
+        password:
+          hooks:
+            - hook: session
+    error:
+      ui_url: http://localhost:3000/error
+
+log:
+  level: debug
+  leak_sensitive_values: true
+
+hashers:
+  argon2:
+    parallelism: 1
+    memory: 128KB
+    iterations: 2
+    salt_length: 16
+    key_length: 16
+
+identity:
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+# courier:
+#   smtp:
+#     connection_uri: smtps://test:test@mailslurper:1025/?skip_ssl_verify=true
+
+oauth2_provider:
+  url: http://hydra:4445
