@@ -1,8 +1,10 @@
 import { ActionArgs, json, LoaderFunction, redirect } from "@remix-run/node";
+import { useRouteError } from "@remix-run/react";
+import { serverError } from "remix-utils";
 import { z } from "zod";
 import { Footer } from "~/layout/Footer";
 import { Page } from "~/layout/Page";
-import { frontend } from "~/ory.server";
+import { frontend, kratos } from "~/ory.server";
 import { sessionStorage } from "~/session.server";
 import { actionGuard, actionResponse, loaderGuard } from "~/utils";
 import { PasswordLogin } from "./login/PasswordLogin";
@@ -18,12 +20,19 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
   }
 
   if ("flow" in query === false) {
-    const flow = await frontend.createNativeLoginFlow({
-      aal: "aal1",
-      // loginChallenge: query.challenge,
-      // returnTo: query.from,
+    const response = await kratos["/self-service/login/api"].get({
+      query: { aal: "aal1" },
     });
-    url.searchParams.set("flow", flow.data.id);
+
+    if (response.ok === false) {
+      const json = await response.json();
+
+      throw serverError(json.error);
+    }
+
+    const flow = await response.json();
+
+    url.searchParams.set("flow", flow.id);
 
     return redirect(url.toString(), {
       status: 303,
@@ -31,32 +40,23 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
     });
   }
 
-  let flow;
-  try {
-    flow = await frontend.getLoginFlow({ id: query.flow });
+  const response = await kratos["/self-service/login/flows"].get({
+    query: { id: query.flow },
+  });
 
-    return json(
-      { csrf },
-      { headers: { "set-cookie": await sessionStorage.commitSession(session) } }
-    );
-  } catch (error: any) {
-    console.error(
-      "login getLoginFlow error",
-      JSON.stringify(error.response?.data || error, null, 2)
-    );
-
-    flow = await frontend.createNativeLoginFlow({
-      aal: "aal1",
-      // loginChallenge: query.challenge,
-      // returnTo: query.from,
-    });
-    url.searchParams.set("flow", flow.data.id);
+  if (response.ok === false) {
+    url.searchParams.delete("flow");
 
     return redirect(url.toString(), {
       status: 303,
       headers: { "set-cookie": await sessionStorage.commitSession(session) },
     });
   }
+
+  return json(
+    { csrf },
+    { headers: { "set-cookie": await sessionStorage.commitSession(session) } }
+  );
 };
 
 export default () => {
@@ -95,64 +95,61 @@ export const action = async ({ params, request }: ActionArgs) => {
 
   switch (data.type) {
     case "login": {
-      try {
-        const flow = await frontend.updateLoginFlow({
-          flow: query.flow,
-          updateLoginFlowBody: {
-            method: "password",
-            identifier: data.email,
-            password: data.password,
-          },
-        });
+      const response = await kratos["/self-service/login"].post({
+        query: { flow: query.flow },
+        json: {
+          method: "password",
+          identifier: data.email,
+          password: data.password,
+        },
+      });
 
-        session.set("session", flow.data.session_token);
+      if (response.ok === false) {
+        const text = await response.text();
 
-        return redirect(query.from || "/", {
-          status: 303,
-          headers: {
-            "set-cookie": await sessionStorage.commitSession(session),
-          },
-        });
-      } catch (error: any) {
-        console.error(
-          "login action error",
-          error.response.ui,
-          JSON.stringify(error.response?.data || error, null, 2)
-        );
+        console.log("login action text", text);
 
-        return actionResponse(
-          { serverError: "Account not found" },
-          receivedValues
-        );
+        return serverError({ message: text });
       }
+
+      const flow = await response.json();
+
+      session.set("session", flow.session_token);
+
+      return redirect(query.from || "/", {
+        status: 303,
+        headers: {
+          "set-cookie": await sessionStorage.commitSession(session),
+        },
+      });
     }
     case "google": {
-      try {
-        // const flow1 = await frontend.createNativeLoginFlow({
-        //   aal: "aal1",
-        // });
-        const flow1 = await frontend.createBrowserLoginFlow({
-          aal: "aal1",
-        });
-        const flow2 = await frontend.updateLoginFlow({
-          flow: flow1.data.id,
-          updateLoginFlowBody: {
-            method: "oidc",
-            provider: "google",
-          },
-        });
+      // try {
+      //   // const flow1 = await frontend.createNativeLoginFlow({
+      //   //   aal: "aal1",
+      //   // });
+      //   const flow1 = await frontend.createBrowserLoginFlow({
+      //     aal: "aal1",
+      //   });
+      //   const flow2 = await frontend.updateLoginFlow({
+      //     flow: flow1.data.id,
+      //     updateLoginFlowBody: {
+      //       method: "oidc",
+      //       provider: "google",
+      //     },
+      //   });
 
-        console.log("login action google", flow2.data);
-      } catch (error: any) {
-        console.log(
-          "login action google error",
-          error.response.data.constructor.name
-        );
-        console.log(
-          "login action google error",
-          JSON.stringify(error.response?.data || error, null, 2)
-        );
-      }
+      //   console.log("login action google", flow2.data);
+      // } catch (error: any) {
+      //   console.log(
+      //     "login action google error",
+      //     error.response.data.constructor.name
+      //   );
+      //   console.log(
+      //     "login action google error",
+      //     JSON.stringify(error.response?.data || error, null, 2)
+      //   );
+      // }
 
       return actionResponse({ serverError: "Not implemented" }, receivedValues);
     }

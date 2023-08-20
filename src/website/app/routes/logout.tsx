@@ -1,7 +1,8 @@
 import { LoaderFunction, redirect } from "@remix-run/node";
 import { Oval } from "react-loader-spinner";
+import { serverError } from "remix-utils";
 import { Around } from "~/layout/Around";
-import { frontend } from "~/ory.server";
+import { kratos } from "~/ory.server";
 import { sessionStorage } from "~/session.server";
 import { loaderGuard } from "~/utils";
 
@@ -11,9 +12,13 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
   const { session, me, query } = await loaderGuard(request, false);
 
   if (me !== undefined) {
-    await frontend.performNativeLogout({
-      performNativeLogoutBody: { session_token: session.data.session! },
+    const response = await kratos["/self-service/logout/api"].delete({
+      json: { session_token: session.data.session! },
     });
+    if (response.ok === false) {
+      const json = await response.json();
+      throw serverError(json.error);
+    }
   }
 
   return redirect(query.from || "/", {

@@ -1,7 +1,10 @@
 import { Session as KratosSession } from "@ory/kratos-client";
 import { json, redirect, Session } from "@remix-run/node";
-import { AxiosResponse } from "axios";
-import { createAuthenticityToken, verifyAuthenticityToken } from "remix-utils";
+import {
+  createAuthenticityToken,
+  serverError,
+  verifyAuthenticityToken,
+} from "remix-utils";
 import { z } from "zod";
 import { frontend } from "./ory.server";
 import { sessionStorage } from "./session.server";
@@ -35,12 +38,19 @@ export const loaderGuard = async (
   const url = new URL(request.url);
   const query = Object.fromEntries(url.searchParams);
 
-  let me: AxiosResponse<KratosSession>;
-  try {
-    me = await frontend.toSession({
-      xSessionToken: session.data.session,
+  const me = await kratos["/sessions/whoami"].get({
+    headers: { "X-Session-Token": session.data.session },
     });
-  } catch (error: any) {
+
+  let json = undefined;
+
+  if (me.ok === false) {
+    // const text = await me.text();
+
+    // console.log("loaderGuard me.ok === false", text);
+    // console.log("loaderGuard requiresAuthentication", requiresAuthentication);
+    // console.log("loaderGuard url", url.pathname);
+
     if (requiresAuthentication && url.pathname !== "/login") {
       const from = query.from || url.href;
 
@@ -48,7 +58,11 @@ export const loaderGuard = async (
       qs.set("from", from);
 
       throw redirect(`/login?${qs}`, { status: 303 });
+    } else {
+      // throw serverError({ message: "Something went wrong" });
     }
+  } else {
+    json = await me.json();
   }
 
   const csrf = createAuthenticityToken(session as Session, "csrf");

@@ -45,13 +45,15 @@ export const ErrorBoundary = () => {
   const error = useRouteError();
   // const error = new Error("boo");
 
+  console.log("ErrorBoundary error", error);
+
   if (isRouteErrorResponse(error)) {
     return (
       <Page>
         <ErrorMessage
           status={error.status}
           statusText={error.statusText}
-          message={error.data}
+          message={error.data.message || error.data}
         />
       </Page>
     );

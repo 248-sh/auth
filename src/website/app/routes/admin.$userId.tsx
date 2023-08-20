@@ -13,7 +13,12 @@ import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { ServerMessage } from "~/layout/ServerMessage";
-import { identity } from "~/ory.server";
+import {
+  getIdentity,
+  identity,
+  kratos,
+  listIdentitySessions,
+} from "~/ory.server";
 import {
   actionGuard,
   ActionResponse,
@@ -34,8 +39,8 @@ export const loader: LoaderFunction = async ({
   // TODO: check session and permissions
 
   const [user, sessions, tuples] = await Promise.all([
-    identity.getIdentity({ id: userId! }),
-    identity.listIdentitySessions({ id: userId! }),
+    getIdentity(userId!),
+    listIdentitySessions(userId!),
     // keto.getRelationships({ subjectId: userId }),
     null,
   ]);
@@ -44,8 +49,8 @@ export const loader: LoaderFunction = async ({
 
   return json({
     csrf,
-    user: user.data,
-    sessions: sessions.data,
+    user,
+    sessions,
     // roles: roles.map((role) => `${role.object}#${role.relation}`),
     roles: [],
   } as const);
@@ -87,13 +92,21 @@ export const action: ActionFunction = async ({ params, request }) => {
 
   switch (data.type) {
     case "remove-session": {
-      try {
-        const response = await identity.disableSession({ id: data.sessionId });
+      const response = await kratos["/admin/sessions/{id}"].delete({
+        headers: { Authorization: "" },
+        params: { id: data.sessionId },
+      });
 
-        console.log("response data", response.data);
-      } catch (error: any) {
-        return actionResponse({ serverError: error.message }, receivedValues);
+      if (response.ok === false) {
+        const json = await response.json();
+
+        return actionResponse(
+          { serverError: json.error.message },
+          receivedValues
+        );
       }
+
+      const json = await response.json();
 
       return actionResponse(
         undefined,

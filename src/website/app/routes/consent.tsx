@@ -12,7 +12,6 @@ import { PageHeader } from "~/layout/PageHeader";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
-import { identity } from "~/ory.server";
 import { join } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
@@ -23,9 +22,7 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
   console.log("loader request.headers", request.headers);
   // console.log("loader request", request);
 
-  const [identities] = await Promise.all([identity.listIdentities()]);
-
-  return json({ users: identities.data } as const);
+  return json({ users: [] } as const);
 };
 
 export default () => {

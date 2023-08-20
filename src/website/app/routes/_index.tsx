@@ -15,7 +15,7 @@ import { PageHeader } from "~/layout/PageHeader";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
-import { frontend } from "~/ory.server";
+import { kratos, listMySessions } from "~/ory.server";
 import { actionGuard, actionResponse, join, loaderGuard } from "~/utils";
 import { CurrentSession } from "./index/CurrentSession";
 import { OtherSessions } from "./index/OtherSessions";
@@ -28,7 +28,7 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
   const { session, me, csrf } = await loaderGuard(request);
 
   const [sessions, tuples] = await Promise.all([
-    frontend.listMySessions({ xSessionToken: session.data.session }),
+    listMySessions(session.data.session, 1),
     // keto.getRelationships({ subjectId: userId }),
     null,
   ]);
@@ -37,9 +37,9 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
 
   return json({
     csrf,
-    user: me.data.identity,
-    currentSession: me.data,
-    otherSessions: sessions.data,
+    user: me.identity,
+    currentSession: me,
+    otherSessions: sessions,
     // roles: roles.map((role) => `${role.object}#${role.relation}`),
     roles: [],
   } as const);
@@ -93,13 +93,16 @@ export const action: ActionFunction = async ({ params, request }) => {
       return redirect("/logout", { status: 303 });
     }
     case "remove-session": {
-      try {
-        await frontend.disableMySession({
-          xSessionToken: session.data.session,
-          id: data.sessionId,
-        });
-      } catch (error: any) {
-        return actionResponse({ serverError: error.message }, receivedValues);
+      const response = await kratos["/sessions/{id}"].delete({
+        headers: { "X-Session-Token": session.data.session },
+        params: { id: data.sessionId },
+      });
+      if (response.ok === false) {
+        const json = await response.json();
+        return actionResponse(
+          { serverError: json.error.message },
+          receivedValues
+        );
       }
 
       return actionResponse(

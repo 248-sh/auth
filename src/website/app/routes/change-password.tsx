@@ -1,9 +1,9 @@
-import { RequiredError } from "@ory/kratos-client/dist/base";
 import { ActionArgs, json, LoaderFunction, redirect } from "@remix-run/node";
+import { serverError } from "remix-utils";
 import { z } from "zod";
 import { Footer } from "~/layout/Footer";
 import { Page } from "~/layout/Page";
-import { frontend } from "~/ory.server";
+import { kratos } from "~/ory.server";
 import { sessionStorage } from "~/session.server";
 import { actionGuard, actionResponse, loaderGuard } from "~/utils";
 import { ChangePassword } from "./change-password/ChangePassword";
@@ -19,8 +19,17 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
   }
 
   if ("flow" in query === false) {
-    const flow = await frontend.createNativeRecoveryFlow();
-    url.searchParams.set("flow", flow.data.id);
+    const response = await kratos["/self-service/recovery/api"].get();
+
+    if (response.ok === false) {
+      const json = await response.json();
+
+      throw serverError(json.error);
+    }
+
+    const flow = await response.json();
+
+    url.searchParams.set("flow", flow.id);
 
     return redirect(url.toString(), {
       status: 303,
@@ -28,34 +37,22 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
     });
   }
 
-  let flow;
-  try {
-    flow = await frontend.getRecoveryFlow({ id: query.flow });
+  const response = await kratos["/self-service/recovery/flows"].get({
+    query: { id: query.flow },
+  });
 
-    // flow.data.ui.messages[0].type==="error"
-    // flow.data.ui.messages[0].type==="info"
-    // flow.data.ui.messages[0].type==="success"
-    console.log("flow.data.ui", JSON.stringify(flow.data.ui, null, 2));
-    console.log("flow.data.state", flow.data.state);
-
-    return json(
-      { csrf },
-      { headers: { "set-cookie": await sessionStorage.commitSession(session) } }
-    );
-  } catch (error: any) {
-    console.error(
-      "change-password getRecoveryFlow error",
-      JSON.stringify(error.response?.data || error, null, 2)
-    );
-
-    flow = await frontend.createNativeRecoveryFlow();
-    url.searchParams.set("flow", flow.data.id);
+  if (response.ok === false) {
+    url.searchParams.delete("flow");
 
     return redirect(url.toString(), {
       status: 303,
       headers: { "set-cookie": await sessionStorage.commitSession(session) },
     });
   }
+  return json(
+    { csrf },
+    { headers: { "set-cookie": await sessionStorage.commitSession(session) } }
+  );
 };
 
 export default () => {
@@ -94,62 +91,46 @@ export const action = async ({ params, request }: ActionArgs) => {
 
   switch (data.type) {
     case "request-change-password": {
-      try {
-        const flow = await frontend.updateRecoveryFlow({
-          flow: query.flow,
-          updateRecoveryFlowBody: {
-            method: "code",
-            email: data.email,
-          },
-        });
+      const response = await kratos["/self-service/recovery"].post({
+        query: { flow: query.flow },
+        json: {
+          method: "code",
+          email: data.email,
+        },
+      });
 
-        console.log(
-          "request-change-password action",
-          JSON.stringify(flow.data, null, 2)
-        );
+      if (response.ok === false) {
+        const text = await response.text();
 
-        return actionResponse(undefined, receivedValues);
-      } catch (error: any) {
-        console.error(
-          "request-change-password action error",
-          error.response.data
-          // JSON.stringify(error.response?.data || error, null, 2)
-        );
-
-        return actionResponse(
-          { serverError: "Account not found" },
-          receivedValues
-        );
+        return serverError({ message: text });
       }
+
+      const flow = await response.json();
+
+      console.log("change-password action", JSON.stringify(flow, null, 2));
+
+      return actionResponse(undefined, receivedValues);
     }
     case "change-password": {
-      try {
-        const flow = await frontend.updateRecoveryFlow({
-          flow: query.flow,
-          updateRecoveryFlowBody: {
-            method: "code",
-            code: data.code,
-          },
-        });
+      const response = await kratos["/self-service/recovery"].post({
+        query: { flow: query.flow },
+        json: {
+          method: "code",
+          code: data.code,
+        },
+      });
 
-        console.log(
-          "change-password action",
-          JSON.stringify(flow.data, null, 2)
-        );
+      if (response.ok === false) {
+        const text = await response.text();
 
-        return actionResponse(undefined, receivedValues);
-      } catch (error: any) {
-        console.error(
-          "change-password action error",
-          error.response.data
-          // JSON.stringify(error.response?.data || error, null, 2)
-        );
-
-        return actionResponse(
-          { serverError: "Account not found" },
-          receivedValues
-        );
+        return serverError({ message: text });
       }
+
+      const flow = await response.json();
+
+      console.log("change-password action", JSON.stringify(flow, null, 2));
+
+      return actionResponse(undefined, receivedValues);
     }
   }
 

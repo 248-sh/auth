@@ -8,25 +8,24 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@headlessui/react": "^1.7.16",
+    "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
     "@icons-pack/react-simple-icons": "^8.0.1",
-    "@ory/hydra-client": "^2.1.1",
-    "@ory/keto-client": "^0.11.0-alpha.0",
     "@ory/kratos-client": "^0.13.1",
     "@remix-run/node": "^1.19.3",
     "@remix-run/react": "^1.19.3",
     "@remix-run/serve": "^1.19.3",
     "@tailwindcss/forms": "^0.5.4",
     "date-fns": "^2.30.0",
+    "fets": "^0.4.11",
     "immer": "^10.0.2",
     "isbot": "^3.6.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-loader-spinner": "^5.3.4",
     "remix-utils": "^6.6.0",
-    "simple-icons": "^9.9.0",
-    "zod": "^3.21.4"
+    "simple-icons": "^9.11.0",
+    "zod": "^3.22.2"
   },
   "devDependencies": {
     "@csstools/postcss-oklab-function": "^3.0.1",
@@ -34,7 +33,7 @@
     "@remix-run/eslint-config": "^1.19.3",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.0.11",
-    "autoprefixer": "^10.4.14",
+    "autoprefixer": "^10.4.15",
     "eslint": "^8.47.0",
     "tailwind-lerp-colors": "^1.2.1",
     "tailwindcss": "^3.3.3",

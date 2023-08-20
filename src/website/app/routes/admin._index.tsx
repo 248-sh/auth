@@ -12,8 +12,8 @@ import { PageHeader } from "~/layout/PageHeader";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
-import { identity } from "~/ory.server";
-import { join, loaderGuard } from "~/utils";
+import { listIdentities } from "~/ory.server";
+import { loaderGuard } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
@@ -22,9 +22,9 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
 
   // TODO: check session and permissions
 
-  const [identities] = await Promise.all([identity.listIdentities()]);
+  const [users] = await Promise.all([listIdentities(1)]);
 
-  return json({ users: identities.data } as const);
+  return json({ users } as const);
 };
 
 export default () => {
