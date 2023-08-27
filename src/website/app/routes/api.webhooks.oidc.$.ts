@@ -3,8 +3,7 @@ import { redirect } from "remix-typedjson";
 import { sessionStorage } from "~/session.server";
 import { loaderGuard } from "~/utils";
 
-// const kratosUrl = process.env.KRATOS_PUBLIC_ENDPOINT;
-const kratosUrl = "https://public-kratos.248.sh";
+const kratosUrl = process.env.KRATOS_PUBLIC_ENDPOINT;
 
 export const loader = async ({ params, request }: LoaderArgs) => {
   const guard = await loaderGuard(request);

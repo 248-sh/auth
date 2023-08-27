@@ -17,8 +17,7 @@ import { Kratos } from "~/openapi/kratos";
 // export const oathkeeper = new ApiApi(undefined, "http://localhost:4456");
 
 export const kratos = createClient<Kratos>({
-  // endpoint: process.env.KRATOS_ADMIN_ENDPOINT,
-  endpoint: process.env.KRATOS_PUBLIC_ENDPOINT,
+  endpoint: process.env.KRATOS_ADMIN_ENDPOINT,
 });
 
 // admin
