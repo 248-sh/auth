@@ -1,6 +1,6 @@
-import { createClient, type NormalizeOAS } from "fets";
+import { createClient } from "fets";
 import { serverError } from "remix-utils";
-import type kratosSchema from "~/openapi/kratosSchema";
+import { Kratos } from "~/openapi/kratos";
 
 // export const keto = new RelationshipApi(
 //   undefined,
@@ -16,8 +16,7 @@ import type kratosSchema from "~/openapi/kratosSchema";
 // );
 // export const oathkeeper = new ApiApi(undefined, "http://localhost:4456");
 
-export type KratosNormalized = NormalizeOAS<typeof kratosSchema>;
-export const kratos = createClient<KratosNormalized>({
+export const kratos = createClient<Kratos>({
   // endpoint: process.env.KRATOS_ADMIN_URL,
   endpoint: process.env.KRATOS_PUBLIC_URL,
 });
@@ -29,11 +28,11 @@ export const listIdentities = async (page: number) => {
     query: { per_page: 100, page },
   });
   if (response.ok === false) {
-    const json = await response.json();
-    throw serverError(json.error);
+    const body = await response.json();
+    throw serverError(body.error.message);
   }
-  const json = await response.json();
-  return json;
+  const body = await response.json();
+  return body;
 };
 export const getIdentity = async (id: string) => {
   const response = await kratos["/admin/identities/{id}"].get({
@@ -41,11 +40,11 @@ export const getIdentity = async (id: string) => {
     params: { id },
   });
   if (response.ok === false) {
-    const json = await response.json();
-    throw serverError(json.error);
+    const body = await response.json();
+    throw serverError(body.error.message);
   }
-  const json = await response.json();
-  return json;
+  const body = await response.json();
+  return body;
 };
 export const listIdentitySessions = async (id: string) => {
   const response = await kratos["/admin/identities/{id}/sessions"].get({
@@ -53,11 +52,11 @@ export const listIdentitySessions = async (id: string) => {
     params: { id },
   });
   if (response.ok === false) {
-    const json = await response.json();
-    throw serverError(json.error);
+    const body = await response.json();
+    throw serverError(body.error.message);
   }
-  const json = await response.json();
-  return json;
+  const body = await response.json();
+  return body;
 };
 
 // public
@@ -66,11 +65,11 @@ export const listIdentitySessions = async (id: string) => {
 //     headers: { "X-Session-Token": sessionToken },
 //   });
 //   if (response.ok === false) {
-//     const json = await response.json();
-//     throw serverError(json.error);
+//     const body = await response.json();
+//     throw serverError(body.error.message);
 //   }
-//   const json = await response.json();
-//   return json;
+//   const body = await response.json();
+//   return body;
 // };
 export const listMySessions = async (
   sessionToken: string | undefined,
@@ -81,9 +80,9 @@ export const listMySessions = async (
     query: { per_page: 100, page },
   });
   if (response.ok === false) {
-    const json = await response.json();
-    throw serverError(json.error);
+    const body = await response.json();
+    throw serverError(body.error.message);
   }
-  const json = await response.json();
-  return json;
+  const body = await response.json();
+  return body;
 };

@@ -1,22 +1,30 @@
 import { Switch } from "@headlessui/react";
-import { Identity } from "@ory/kratos-client";
-import {
-  ActionFunction,
-  json,
-  LoaderFunction,
-  redirect,
-  V2_MetaFunction,
-} from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { ActionArgs, LoaderArgs, V2_MetaFunction } from "@remix-run/node";
 import { FC, useState } from "react";
+import {
+  redirect,
+  typedjson as json,
+  TypedJsonResponse,
+  useTypedLoaderData as useLoaderData,
+} from "remix-typedjson";
+import { serverError } from "remix-utils";
 import { z } from "zod";
 import { Page } from "~/layout/Page";
 import { PageHeader } from "~/layout/PageHeader";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
+import { KratosIdentity, KratosSession } from "~/openapi/kratos";
 import { kratos, listMySessions } from "~/ory.server";
-import { actionGuard, actionResponse, join, loaderGuard } from "~/utils";
+import { sessionStorage } from "~/session.server";
+import {
+  ActionData,
+  actionGuard,
+  join,
+  LoaderData,
+  loaderGuard,
+  redirectToLogin,
+} from "~/utils";
 import { CurrentSession } from "./index/CurrentSession";
 import { OtherSessions } from "./index/OtherSessions";
 
@@ -24,11 +32,76 @@ export { ErrorBoundary } from "~/ErrorBoundary";
 
 export const meta: V2_MetaFunction = () => [{ title: "id.248.sh | admin" }];
 
-export const loader: LoaderFunction = async ({ context, params, request }) => {
-  const { session, me, csrf } = await loaderGuard(request);
+export const loader = async ({
+  context,
+  params,
+  request,
+}: LoaderArgs): Promise<
+  TypedJsonResponse<
+    LoaderData & {
+      user: KratosIdentity;
+      currentSession: KratosSession;
+      otherSessions: KratosSession[];
+      // roles: any[];
+    }
+  >
+> => {
+  const guard = await loaderGuard(request);
+
+  console.log("_index url", guard.url);
+
+  const { url, session } = guard;
+
+  const code = url.searchParams.get("code");
+
+  const session_token_exchange_code = session.get(
+    "session_token_exchange_code"
+  );
+
+  if (code && session_token_exchange_code) {
+    const response = await kratos["/sessions/token-exchange"].get({
+      query: {
+        init_code: session_token_exchange_code,
+        return_to_code: code,
+      },
+    });
+
+    if (response.ok === false) {
+      const body = await response.json();
+
+      console.log(
+        "_index loader",
+        response.status,
+        JSON.stringify(body, null, 2)
+      );
+
+      throw serverError(body.error.message);
+    }
+
+    const body = await response.json();
+
+    console.log("_index loader", response.status, JSON.stringify(body, null, 2));
+
+    session.unset("session_token_exchange_code");
+
+    session.set("session_token", body.session_token);
+
+    return redirect(url.searchParams.get("from") || "/", {
+      status: 303,
+      headers: {
+        "set-cookie": await sessionStorage.commitSession(session),
+      },
+    });
+  }
+
+  if (guard.state === "without-identity") {
+    return redirectToLogin(guard);
+  }
+
+  const { identity: me, csrf } = guard;
 
   const [sessions, tuples] = await Promise.all([
-    listMySessions(session.data.session, 1),
+    listMySessions(session.get("session_token"), 1),
     // keto.getRelationships({ subjectId: userId }),
     null,
   ]);
@@ -41,12 +114,14 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
     currentSession: me,
     otherSessions: sessions,
     // roles: roles.map((role) => `${role.object}#${role.relation}`),
-    roles: [],
   } as const);
 };
 
+export type LoaderResponse = typeof loader;
+
 export default () => {
-  const { user, currentSession, otherSessions, roles } = useLoaderData();
+  const { user, currentSession, otherSessions } =
+    useLoaderData<LoaderResponse>();
 
   // const { id, traits } = user;
   const name = "Name"; // join(traits.name.first, traits.name.last);
@@ -59,7 +134,7 @@ export default () => {
 
       <CurrentSession session={currentSession} />
       <OtherSessions sessions={otherSessions} />
-      <Roles roles={roles} />
+      {/* <Roles roles={roles} /> */}
       <Account user={user} />
       <Profile user={user} />
     </Page>
@@ -82,41 +157,62 @@ const actionSchema = z.intersection(
     }),
   ])
 );
-export const action: ActionFunction = async ({ params, request }) => {
-  const { session, receivedValues, data } = await actionGuard(
-    request,
-    actionSchema
-  );
+export const action = async ({
+  params,
+  request,
+}: ActionArgs): Promise<TypedJsonResponse<ActionData>> => {
+  const guard = await actionGuard(request, actionSchema);
+
+  if (guard.state === "not-valid") {
+    return json<ActionData>({
+      state: "not-valid",
+      messages: guard.messages,
+
+      defaultValues: guard.defaultValues,
+    });
+  }
+
+  const { session, data } = guard;
 
   switch (data.type) {
     case "logout": {
-      return redirect("/logout", { status: 303 });
+      return redirect("/logout", {
+        status: 303,
+        headers: { "set-cookie": await sessionStorage.commitSession(session) },
+      });
     }
     case "remove-session": {
       const response = await kratos["/sessions/{id}"].delete({
-        headers: { "X-Session-Token": session.data.session },
+        headers: { "X-Session-Token": session.get("session_token") },
         params: { id: data.sessionId },
       });
+
       if (response.ok === false) {
-        const json = await response.json();
-        return actionResponse(
-          { serverError: json.error.message },
-          receivedValues
-        );
+        const body = await response.json();
+
+        return json<ActionData>({
+          state: "failure",
+          message: body.error.message,
+
+          defaultValues: guard.defaultValues,
+        });
       }
 
-      return actionResponse(
-        undefined,
-        receivedValues,
-        `Revoked session ${data.sessionId}`
-      );
+      return json<ActionData>({
+        state: "success",
+        message: `Revoked session ${data.sessionId}`,
+
+        defaultValues: guard.defaultValues,
+      });
     }
   }
 
-  return actionResponse(
-    { serverError: "Unsupported operation" },
-    receivedValues
-  );
+  return json<ActionData>({
+    state: "failure",
+    message: "Unsupported operation",
+
+    defaultValues: guard.defaultValues,
+  });
 };
 
 const Roles: FC<{ roles: string[] }> = ({ roles }) => {
@@ -137,7 +233,7 @@ const Roles: FC<{ roles: string[] }> = ({ roles }) => {
     </Section>
   );
 };
-const Account: FC<{ user: Identity }> = ({ user }) => {
+const Account: FC<{ user: KratosIdentity }> = ({ user }) => {
   const [automaticTimezoneEnabled, setAutomaticTimezoneEnabled] =
     useState(true);
   const [autoUpdateApplicantDataEnabled, setAutoUpdateApplicantDataEnabled] =
@@ -260,7 +356,7 @@ const Account: FC<{ user: Identity }> = ({ user }) => {
     </Section>
   );
 };
-const Profile: FC<{ user: Identity }> = ({ user }) => {
+const Profile: FC<{ user: KratosIdentity }> = ({ user }) => {
   const { id, traits } = user;
   const name = "Name"; // join(traits.name.first, traits.name.last);
   // const createdAt = format(parseISO(user.created_at), "yyyy-MM-dd HH:mm:SS");

@@ -22,7 +22,7 @@ export const LoginPasswordInput = ({ name = "password" }) => {
           Password
         </label>
         <div className="text-sm">
-          <TextLink to="#">Forgot password?</TextLink>
+          <TextLink to="/change-password">Forgot password?</TextLink>
         </div>
       </div>
       <div className="mt-2 flex rounded-md shadow-sm">

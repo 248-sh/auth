@@ -1,35 +1,64 @@
-import { ActionArgs, json, LoaderFunction, redirect } from "@remix-run/node";
+import { ActionArgs, LoaderArgs } from "@remix-run/node";
+import {
+  redirect,
+  typedjson as json,
+  TypedJsonResponse,
+} from "remix-typedjson";
 import { serverError } from "remix-utils";
 import { z } from "zod";
 import { Footer } from "~/layout/Footer";
 import { Page } from "~/layout/Page";
 import { kratos } from "~/ory.server";
 import { sessionStorage } from "~/session.server";
-import { actionGuard, actionResponse, loaderGuard } from "~/utils";
+import {
+  ActionData,
+  actionGuard,
+  LoaderData,
+  loaderGuard,
+  redirectToHome,
+} from "~/utils";
 import { ChangePassword } from "./change-password/ChangePassword";
 import { RequestChangePassword } from "./change-password/RequestChangePassword";
 
-export { ErrorBoundary } from "~/ErrorBoundary";
+export const loader = async ({
+  context,
+  params,
+  request,
+}: LoaderArgs): Promise<TypedJsonResponse<LoaderData>> => {
+  const guard = await loaderGuard(request);
 
-export const loader: LoaderFunction = async ({ context, params, request }) => {
-  const { session, me, csrf, url, query } = await loaderGuard(request, false);
-
-  if (me !== undefined) {
-    return redirect(query.from || "/", { status: 303 });
+  if (guard.state === "with-identity") {
+    return redirectToHome(guard);
   }
 
-  if ("flow" in query === false) {
+  const { url, session, csrf } = guard;
+
+  const flow = url.searchParams.get("flow");
+
+  if (flow === null) {
     const response = await kratos["/self-service/recovery/api"].get();
 
     if (response.ok === false) {
-      const json = await response.json();
+      const body = await response.json();
 
-      throw serverError(json.error);
+      console.log(
+        "change-password loader",
+        response.status,
+        JSON.stringify(body, null, 2)
+      );
+
+      throw serverError(body.error.message);
     }
 
-    const flow = await response.json();
+    const body = await response.json();
 
-    url.searchParams.set("flow", flow.id);
+    console.log(
+      "change-password loader",
+      response.status,
+      JSON.stringify(body, null, 2)
+    );
+
+    url.searchParams.set("flow", body.id);
 
     return redirect(url.toString(), {
       status: 303,
@@ -38,7 +67,7 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
   }
 
   const response = await kratos["/self-service/recovery/flows"].get({
-    query: { id: query.flow },
+    query: { id: flow },
   });
 
   if (response.ok === false) {
@@ -54,6 +83,8 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
     { headers: { "set-cookie": await sessionStorage.commitSession(session) } }
   );
 };
+
+export type LoaderResponse = typeof loader;
 
 export default () => {
   return (
@@ -79,63 +110,213 @@ const actionSchema = z.intersection(
     }),
   ])
 );
-export const action = async ({ params, request }: ActionArgs) => {
-  const { session, receivedValues, errors, data, query } = await actionGuard(
-    request,
-    actionSchema
-  );
+export const action = async ({
+  params,
+  request,
+}: ActionArgs): Promise<TypedJsonResponse<ActionData>> => {
+  const guard = await actionGuard(request, actionSchema);
 
-  if (errors) {
-    return actionResponse(errors, receivedValues);
+  if (guard.state === "not-valid") {
+    return json<ActionData>({
+      state: "not-valid",
+      messages: guard.messages,
+
+      defaultValues: guard.defaultValues,
+    });
+  }
+
+  const { url, session, data } = guard;
+
+  const flow = url.searchParams.get("flow");
+
+  if (flow === null) {
+    return json<ActionData>({
+      state: "failure",
+      message: "Missing required parameter",
+
+      defaultValues: guard.defaultValues,
+    });
   }
 
   switch (data.type) {
     case "request-change-password": {
       const response = await kratos["/self-service/recovery"].post({
-        query: { flow: query.flow },
+        query: { flow },
         json: {
           method: "code",
           email: data.email,
         },
       });
 
-      if (response.ok === false) {
-        const text = await response.text();
+      switch (response.status) {
+        case 200:
+        case 400: {
+          const body = await response.json();
 
-        return serverError({ message: text });
+          console.log(
+            "request-change-password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          const { messages = [] } = body.ui;
+
+          if (messages.length > 0) {
+            switch (messages[0].type) {
+              case "error": {
+                return json<ActionData>({
+                  state: "failure",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+              case "info":
+              case "success": {
+                return json<ActionData>({
+                  state: "success",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+            }
+          }
+
+          break;
+        }
+        case 422: {
+          const body = await response.json();
+
+          console.log(
+            "request-change-password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          // return json<ActionData>({
+          //   state: "failure",
+          //   message: body.error.message,
+
+          //   defaultValues: guard.defaultValues,
+          // });
+
+          break;
+        }
+        case 410:
+        // 403?
+        default: {
+          const body = await response.json();
+
+          console.log(
+            "request-change-password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          return json<ActionData>({
+            state: "failure",
+            message: body.error.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        }
       }
 
-      const flow = await response.json();
-
-      console.log("change-password action", JSON.stringify(flow, null, 2));
-
-      return actionResponse(undefined, receivedValues);
+      break;
     }
     case "change-password": {
       const response = await kratos["/self-service/recovery"].post({
-        query: { flow: query.flow },
+        query: { flow },
         json: {
           method: "code",
           code: data.code,
         },
       });
 
-      if (response.ok === false) {
-        const text = await response.text();
+      switch (response.status) {
+        case 200:
+        case 400: {
+          const body = await response.json();
 
-        return serverError({ message: text });
+          console.log(
+            "change-password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          const { messages = [] } = body.ui;
+
+          if (messages.length > 0) {
+            switch (messages[0].type) {
+              case "error": {
+                return json<ActionData>({
+                  state: "failure",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+              case "info":
+              case "success": {
+                return json<ActionData>({
+                  state: "success",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+            }
+          }
+
+          break;
+        }
+        case 422: {
+          const body = await response.json();
+
+          console.log(
+            "change-password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          // return json<ActionData>({
+          //   state: "failure",
+          //   message: body.error.message,
+
+          //   defaultValues: guard.defaultValues,
+          // });
+
+          break;
+        }
+        case 410:
+        // 403?
+        default: {
+          const body = await response.json();
+
+          console.log(
+            "change-password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          return json<ActionData>({
+            state: "failure",
+            message: body.error.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        }
       }
 
-      const flow = await response.json();
-
-      console.log("change-password action", JSON.stringify(flow, null, 2));
-
-      return actionResponse(undefined, receivedValues);
+      break;
     }
   }
 
-  return actionResponse(
-    { serverError: "Unsupported operation" },
-    receivedValues
-  );
+  return json<ActionData>({
+    state: "failure",
+    message: "Unsupported operation",
+
+    defaultValues: guard.defaultValues,
+  });
 };

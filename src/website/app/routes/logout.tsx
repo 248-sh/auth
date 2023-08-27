@@ -1,6 +1,6 @@
-import { LoaderFunction, redirect } from "@remix-run/node";
+import { LoaderArgs } from "@remix-run/node";
 import { Oval } from "react-loader-spinner";
-import { serverError } from "remix-utils";
+import { redirect, TypedJsonResponse } from "remix-typedjson";
 import { Around } from "~/layout/Around";
 import { kratos } from "~/ory.server";
 import { sessionStorage } from "~/session.server";
@@ -8,24 +8,24 @@ import { loaderGuard } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
-export const loader: LoaderFunction = async ({ context, params, request }) => {
-  const { session, me, query } = await loaderGuard(request, false);
+export const loader = async ({
+  context,
+  params,
+  request,
+}: LoaderArgs): Promise<TypedJsonResponse<never>> => {
+  const { url, session } = await loaderGuard(request);
 
-  if (me !== undefined) {
-    const response = await kratos["/self-service/logout/api"].delete({
-      json: { session_token: session.data.session! },
-    });
-    if (response.ok === false) {
-      const json = await response.json();
-      throw serverError(json.error);
-    }
-  }
+  await kratos["/self-service/logout/api"].delete({
+    json: { session_token: session.get("session_token") },
+  });
 
-  return redirect(query.from || "/", {
+  return redirect(url.searchParams.get("from") || "/", {
     status: 303,
     headers: { "set-cookie": await sessionStorage.destroySession(session) },
   });
 };
+
+export type LoaderResponse = typeof loader;
 
 export default () => {
   return (

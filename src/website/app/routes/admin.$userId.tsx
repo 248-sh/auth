@@ -1,10 +1,15 @@
 import { Switch } from "@headlessui/react";
 import { CalendarIcon } from "@heroicons/react/20/solid";
-import { Identity, Session } from "@ory/kratos-client";
-import { ActionFunction, json, LoaderFunction } from "@remix-run/node";
-import { Link, useFetcher, useLoaderData } from "@remix-run/react";
+import { ActionArgs, LoaderArgs } from "@remix-run/node";
+import { Link } from "@remix-run/react";
 import { format, formatDistance, isAfter, parseISO } from "date-fns";
 import { FC, useState } from "react";
+import {
+  typedjson as json,
+  TypedJsonResponse,
+  useTypedFetcher as useFetcher,
+  useTypedLoaderData as useLoaderData,
+} from "remix-typedjson";
 import { z } from "zod";
 import { FetcherContext } from "~/hooks/useFetcherContext";
 import { Page } from "~/layout/Page";
@@ -13,28 +18,38 @@ import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { ServerMessage } from "~/layout/ServerMessage";
+import { KratosIdentity, KratosSession } from "~/openapi/kratos";
+import { getIdentity, kratos, listIdentitySessions } from "~/ory.server";
 import {
-  getIdentity,
-  identity,
-  kratos,
-  listIdentitySessions,
-} from "~/ory.server";
-import {
+  ActionData,
   actionGuard,
-  ActionResponse,
-  actionResponse,
   join,
+  LoaderData,
   loaderGuard,
+  redirectToLogin,
 } from "~/utils";
 import { SessionDetails } from "./index/SessionDetails";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
-export const loader: LoaderFunction = async ({
+export const loader = async ({
   params: { userId },
   request,
-}) => {
-  const { session, csrf, url, query } = await loaderGuard(request);
+}: LoaderArgs): Promise<
+  TypedJsonResponse<
+    LoaderData & {
+      user: KratosIdentity;
+      sessions: KratosSession[];
+    }
+  >
+> => {
+  const guard = await loaderGuard(request);
+
+  if (guard.state === "without-identity") {
+    return redirectToLogin(guard);
+  }
+
+  const { identity: me, csrf } = guard;
 
   // TODO: check session and permissions
 
@@ -52,12 +67,13 @@ export const loader: LoaderFunction = async ({
     user,
     sessions,
     // roles: roles.map((role) => `${role.object}#${role.relation}`),
-    roles: [],
   } as const);
 };
 
+export type LoaderResponse = typeof loader;
+
 export default () => {
-  const { user, sessions, roles } = useLoaderData();
+  const { user, sessions } = useLoaderData<LoaderResponse>();
 
   const { id, traits } = user;
   const name = "Name"; // join(traits.name.first, traits.name.last);
@@ -68,7 +84,7 @@ export default () => {
       <PageHeader title={name} />
 
       <Sessions sessions={sessions} />
-      <Roles roles={roles} />
+      {/* <Roles roles={roles} /> */}
       <Account user={user} />
       <Profile user={user} />
     </Page>
@@ -84,11 +100,22 @@ const actionSchema = z.intersection(
     }),
   ])
 );
-export const action: ActionFunction = async ({ params, request }) => {
-  const { session, receivedValues, data } = await actionGuard(
-    request,
-    actionSchema
-  );
+export const action = async ({
+  params,
+  request,
+}: ActionArgs): Promise<TypedJsonResponse<ActionData>> => {
+  const guard = await actionGuard(request, actionSchema);
+
+  if (guard.state === "not-valid") {
+    return json<ActionData>({
+      state: "not-valid",
+      messages: guard.messages,
+
+      defaultValues: guard.defaultValues,
+    });
+  }
+
+  const { url, session, data } = guard;
 
   switch (data.type) {
     case "remove-session": {
@@ -98,32 +125,37 @@ export const action: ActionFunction = async ({ params, request }) => {
       });
 
       if (response.ok === false) {
-        const json = await response.json();
+        const body = await response.json();
 
-        return actionResponse(
-          { serverError: json.error.message },
-          receivedValues
-        );
+        return json<ActionData>({
+          state: "failure",
+          message: body.error.message,
+
+          defaultValues: guard.defaultValues,
+        });
       }
 
-      const json = await response.json();
+      return json<ActionData>({
+        state: "success",
+        message: `Revoked session ${data.sessionId}`,
 
-      return actionResponse(
-        undefined,
-        receivedValues,
-        `Revoked session ${data.sessionId}`
-      );
+        defaultValues: guard.defaultValues,
+      });
     }
   }
 
-  return actionResponse(
-    { serverError: "Unsupported operation" },
-    receivedValues
-  );
+  return json<ActionData>({
+    state: "failure",
+    message: "Unsupported operation",
+
+    defaultValues: guard.defaultValues,
+  });
 };
 
-const Sessions: FC<{ sessions: Session[] }> = ({ sessions }) => {
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+const Sessions: FC<{ sessions: KratosSession[] }> = ({ sessions }) => {
+  const [selectedSession, setSelectedSession] = useState<KratosSession | null>(
+    null
+  );
 
   return (
     <>
@@ -135,12 +167,12 @@ const Sessions: FC<{ sessions: Session[] }> = ({ sessions }) => {
 
         {sessions.map((session, i) => (
           <Link
-            key={id}
+            key={session.id}
             to="#"
             onClick={() => setSelectedSession(session)}
             className="block"
           >
-            <SectionItem key={session.id} withStripe={i % 2 === 0}>
+            <SectionItem withStripe={i % 2 === 0}>
               <SessionItem session={session} />
             </SectionItem>
           </Link>
@@ -150,9 +182,9 @@ const Sessions: FC<{ sessions: Session[] }> = ({ sessions }) => {
     </>
   );
 };
-const SessionItem: FC<{ session: Session }> = ({ session }) => {
-  const { csrf } = useLoaderData();
-  const fetcher = useFetcher<ActionResponse>();
+const SessionItem: FC<{ session: KratosSession }> = ({ session }) => {
+  const { csrf } = useLoaderData<LoaderResponse>();
+  const fetcher = useFetcher<ActionData>();
 
   const submitting =
     fetcher.state === "submitting"
@@ -235,7 +267,7 @@ const Roles: FC<{ roles: string[] }> = ({ roles }) => {
     </Section>
   );
 };
-const Account: FC<{ user: Identity }> = ({ user }) => {
+const Account: FC<{ user: KratosIdentity }> = ({ user }) => {
   const [automaticTimezoneEnabled, setAutomaticTimezoneEnabled] =
     useState(true);
   const [autoUpdateApplicantDataEnabled, setAutoUpdateApplicantDataEnabled] =
@@ -358,7 +390,7 @@ const Account: FC<{ user: Identity }> = ({ user }) => {
     </Section>
   );
 };
-const Profile: FC<{ user: Identity }> = ({ user }) => {
+const Profile: FC<{ user: KratosIdentity }> = ({ user }) => {
   const { id, traits } = user;
   const name = "Name"; // join(traits.name.first, traits.name.last);
   const createdAt = format(parseISO(user.created_at), "yyyy-MM-dd HH:mm:SS");

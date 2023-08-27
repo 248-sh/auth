@@ -1,11 +1,14 @@
-import { useFetcher, useLoaderData } from "@remix-run/react";
 import { FC } from "react";
+import {
+  useTypedFetcher as useFetcher,
+  useTypedLoaderData as useLoaderData,
+} from "remix-typedjson";
 import { FetcherContext } from "~/hooks/useFetcherContext";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { ServerMessage } from "~/layout/ServerMessage";
-import { ActionResponse } from "~/utils";
+import { ActionData, LoaderData } from "~/utils";
 import { SocialButtons } from "../social/SocialButtons";
 
 // const initialState = {
@@ -25,8 +28,8 @@ import { SocialButtons } from "../social/SocialButtons";
 // });
 
 export const SocialRegister: FC = () => {
-  const { csrf } = useLoaderData();
-  const fetcher = useFetcher<ActionResponse>();
+  const { csrf } = useLoaderData<LoaderData>();
+  const fetcher = useFetcher<ActionData>();
 
   return (
     <Section>

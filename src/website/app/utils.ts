@@ -1,109 +1,139 @@
-import { Session as KratosSession } from "@ory/kratos-client";
-import { json, redirect, Session } from "@remix-run/node";
-import {
-  createAuthenticityToken,
-  serverError,
-  verifyAuthenticityToken,
-} from "remix-utils";
+import { Session } from "@remix-run/node";
+import { redirect } from "remix-typedjson";
+import { createAuthenticityToken, verifyAuthenticityToken } from "remix-utils";
 import { z } from "zod";
-import { frontend } from "./ory.server";
+import { KratosSession } from "./openapi/kratos";
+import { kratos } from "./ory.server";
 import { sessionStorage } from "./session.server";
 
 export const join = (...parts: (string | undefined)[]) =>
   parts.filter(Boolean).join(" ");
 
-// TODO: fix type definition
-type Input = z.infer<z.ZodTypeAny>;
-export type ActionErrors = Record<string, string>;
-export type ActionDefaultValues = Record<string, Input>;
-export type ActionResponse = {
-  errors: ActionErrors | undefined;
-  success: string | undefined;
-  defaultValues: ActionDefaultValues | undefined;
+type WithoutIdentity = {
+  state: "without-identity";
+  message: string;
+};
+type WithIdentity = {
+  state: "with-identity";
+  identity: KratosSession;
 };
 
-export const actionResponse = (
-  errors: ActionErrors | undefined,
-  defaultValues: ActionDefaultValues | undefined,
-  success: string | undefined = undefined
-) => json<ActionResponse>({ errors, defaultValues, success });
+export type LoaderData = {
+  csrf: string;
+};
 
-export const loaderGuard = async (
-  request: Request,
-  requiresAuthentication = true
-) => {
+type LoaderGuard = (WithoutIdentity | WithIdentity) & {
+  url: URL;
+  session: Session;
+  csrf: string;
+};
+export const loaderGuard = async (request: Request): Promise<LoaderGuard> => {
   const cookie = request.headers.get("cookie")!;
   const session = await sessionStorage.getSession(cookie);
 
   const url = new URL(request.url);
-  const query = Object.fromEntries(url.searchParams);
 
   const me = await kratos["/sessions/whoami"].get({
-    headers: { "X-Session-Token": session.data.session },
-    });
+    headers: { "X-Session-Token": session.get("session_token") },
+  });
 
-  let json = undefined;
+  let guard: WithoutIdentity | WithIdentity;
 
   if (me.ok === false) {
-    // const text = await me.text();
+    const body = await me.json();
 
-    // console.log("loaderGuard me.ok === false", text);
-    // console.log("loaderGuard requiresAuthentication", requiresAuthentication);
-    // console.log("loaderGuard url", url.pathname);
-
-    if (requiresAuthentication && url.pathname !== "/login") {
-      const from = query.from || url.href;
-
-      const qs = new URLSearchParams();
-      qs.set("from", from);
-
-      throw redirect(`/login?${qs}`, { status: 303 });
-    } else {
-      // throw serverError({ message: "Something went wrong" });
-    }
+    guard = { state: "without-identity", message: body.error.message };
   } else {
-    json = await me.json();
+    const body = await me.json();
+
+    guard = { state: "with-identity", identity: body };
   }
 
-  const csrf = createAuthenticityToken(session as Session, "csrf");
+  const csrf = createAuthenticityToken(session, "csrf");
 
-  return { session, me: me!, csrf, url, query };
+  return { url, session, csrf, ...guard };
 };
 
-const schemaGuard = <T extends z.ZodTypeAny>(
-  schema: T,
-  input: ActionDefaultValues
-) => {
+type Input = Record<string, string | undefined>;
+
+type Success = {
+  state: "success";
+  message: string;
+};
+type Failure = {
+  state: "failure";
+  message: string;
+};
+type NotValid = {
+  state: "not-valid";
+  messages: Record<string, string>;
+};
+type Valid<T extends z.ZodType<any, any, any>> = {
+  state: "valid";
+  data: z.infer<T>;
+};
+
+export type ActionData = (Success | Failure | NotValid) & {
+  defaultValues: Input;
+};
+
+const schemaGuard = <S extends z.ZodType<any, any, any>>(
+  schema: S,
+  input: Input
+): NotValid | Valid<S> => {
   const parsed = schema.safeParse(input);
 
   if (parsed.success === false) {
-    console.log(
-      "schemaGuard parsed.error",
-      JSON.stringify(parsed.error, null, 2)
-    );
-
     return {
-      errors: parsed.error.issues.reduce((memo, issue) => {
+      state: "not-valid",
+      messages: parsed.error.issues.reduce((memo, issue) => {
         memo[issue.path.join(".")] = issue.message;
         return memo;
-      }, {} as ActionErrors),
-      data: undefined,
+      }, {} as Record<string, string>),
     };
   }
 
-  return { errors: undefined, data: parsed.data as z.infer<T> };
+  return { state: "valid", data: parsed.data };
 };
-export const actionGuard = async (request: Request, schema: z.ZodTypeAny) => {
+
+type ActionGuard<S extends z.ZodType<any, any, any>> = (NotValid | Valid<S>) & {
+  url: URL;
+  session: Session;
+  defaultValues: Input;
+};
+export const actionGuard = async <S extends z.ZodType<any, any, any>>(
+  request: Request,
+  schema: S
+): Promise<ActionGuard<S>> => {
   const cookie = request.headers.get("cookie");
   const formData = await request.formData();
   const session = await sessionStorage.getSession(cookie);
-  await verifyAuthenticityToken(formData, session as Session, "csrf");
+  await verifyAuthenticityToken(formData, session, "csrf");
 
-  const input = Object.fromEntries<Input>(formData) as ActionDefaultValues;
-  const { errors, data } = await schemaGuard(schema, input);
+  const input = Object.fromEntries(formData) as Input;
+  const guard = await schemaGuard(schema, input);
 
   const url = new URL(request.url);
-  const query = Object.fromEntries(url.searchParams);
 
-  return { session, receivedValues: input, errors, data, url, query };
+  return { url, session, defaultValues: input, ...guard };
+};
+
+export const redirectToLogin = async ({ url, session }: LoaderGuard) => {
+  const from = url.searchParams.get("from") || url.href;
+
+  const query = new URLSearchParams();
+  query.set("from", from);
+
+  return redirect(`/login?${query}`, {
+    status: 303,
+    headers: { "set-cookie": await sessionStorage.commitSession(session) },
+  });
+};
+export const redirectToHome = async ({ url, session }: LoaderGuard) => {
+  const from = url.searchParams.get("from") || "/";
+
+  return redirect(from, {
+    status: 303,
+    headers: { "set-cookie": await sessionStorage.commitSession(session) },
+  });
 };

@@ -11,9 +11,7 @@ export const ServerMessage: FC = () => {
 
   console.log("ServerMessage data", data);
 
-  const { errors, success } = data;
-
-  if (success) {
+  if (data.state === "success") {
     return (
       <div className="flex rounded-md bg-green-50 p-4 space-x-3">
         <CheckCircleIcon
@@ -22,18 +20,18 @@ export const ServerMessage: FC = () => {
         />
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-green-800">Yay</h3>
-          <p className="text-sm text-green-700">{success}</p>
+          <p className="text-sm text-green-700">{data.message}</p>
         </div>
       </div>
     );
   }
-  if (errors?.serverError) {
+  if (data.state === "failure") {
     return (
       <div className="flex rounded-md bg-red-50 p-4 space-x-3">
         <XCircleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-red-800">Oops</h3>
-          <div className="text-sm text-red-700">{errors.serverError}</div>
+          <div className="text-sm text-red-700">{data.message}</div>
         </div>
       </div>
     );

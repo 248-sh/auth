@@ -1,4 +1,6 @@
-export default {
+import { NormalizeOAS, OASComponentSchema, OASModel } from "fets";
+
+const schema = {
   components: {
     responses: {
       emptyResponse: {
@@ -6880,3 +6882,10 @@ export default {
   "x-forwarded-proto": "string",
   "x-request-id": "string",
 } as const;
+
+export default schema;
+
+export type Kratos = NormalizeOAS<typeof schema>;
+
+export type KratosIdentity = OASModel<Kratos, "identity">;
+export type KratosSession = OASModel<Kratos, "session">;

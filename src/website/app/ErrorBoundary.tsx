@@ -52,7 +52,8 @@ export const ErrorBoundary = () => {
       <Page>
         <ErrorMessage
           status={error.status}
-          statusText={error.statusText}
+          // statusText={error.statusText}
+          statusText="Oops"
           message={error.data.message || error.data}
         />
       </Page>

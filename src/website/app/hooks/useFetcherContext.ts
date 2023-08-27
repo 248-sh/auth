@@ -1,10 +1,9 @@
-import { SerializeFrom } from "@remix-run/node";
-import { FetcherWithComponents } from "@remix-run/react";
 import { createContext, useContext } from "react";
-import { ActionResponse } from "~/utils";
+import { TypedFetcherWithComponents } from "remix-typedjson";
+import { ActionData } from "~/utils";
 
 export const FetcherContext = createContext<
-  FetcherWithComponents<SerializeFrom<ActionResponse>> | undefined
+  TypedFetcherWithComponents<ActionData> | undefined
 >(undefined);
 
 export const useFetcherContext = () => useContext(FetcherContext);
@@ -15,5 +14,5 @@ export const useFetcherData = () => {
     return undefined;
   }
 
-  return fetcher.data as ActionResponse | undefined;
+  return fetcher.data as ActionData | undefined;
 };

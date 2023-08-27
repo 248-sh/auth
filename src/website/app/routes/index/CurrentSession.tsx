@@ -1,17 +1,20 @@
 import { CalendarIcon } from "@heroicons/react/20/solid";
-import { Session } from "@ory/kratos-client";
-import { useFetcher, useLoaderData } from "@remix-run/react";
 import { formatDistance, isAfter, parseISO } from "date-fns";
 import { FC } from "react";
+import {
+  useTypedFetcher as useFetcher,
+  useTypedLoaderData as useLoaderData,
+} from "remix-typedjson";
 import { FetcherContext } from "~/hooks/useFetcherContext";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { ServerMessage } from "~/layout/ServerMessage";
-import { ActionResponse, join } from "~/utils";
+import { KratosSession } from "~/openapi/kratos";
+import { ActionData, join, LoaderData } from "~/utils";
 import { SessionDetails } from "./SessionDetails";
 
-export const CurrentSession: FC<{ session: Session }> = ({ session }) => (
+export const CurrentSession: FC<{ session: KratosSession }> = ({ session }) => (
   <>
     <Section>
       <SectionHeader
@@ -25,9 +28,9 @@ export const CurrentSession: FC<{ session: Session }> = ({ session }) => (
     <SessionDetails session={session} />
   </>
 );
-const SessionItem: FC<{ session: Session }> = ({ session }) => {
-  const { csrf } = useLoaderData();
-  const fetcher = useFetcher<ActionResponse>();
+const SessionItem: FC<{ session: KratosSession }> = ({ session }) => {
+  const { csrf } = useLoaderData<LoaderData>();
+  const fetcher = useFetcher<ActionData>();
 
   const submitting =
     fetcher.state === "submitting"

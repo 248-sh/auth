@@ -1,40 +1,77 @@
+import { ActionArgs, LoaderArgs } from "@remix-run/node";
 import {
-  ActionFunction,
-  json,
-  LoaderFunction,
   redirect,
-} from "@remix-run/node";
+  typedjson as json,
+  TypedJsonResponse,
+} from "remix-typedjson";
 import { serverError } from "remix-utils";
 import { z } from "zod";
 import { Footer } from "~/layout/Footer";
 import { Page } from "~/layout/Page";
 import { kratos } from "~/ory.server";
 import { sessionStorage } from "~/session.server";
-import { actionGuard, actionResponse, loaderGuard } from "~/utils";
+import {
+  ActionData,
+  actionGuard,
+  LoaderData,
+  loaderGuard,
+  redirectToHome,
+} from "~/utils";
 import { PasswordRegister } from "./register/PasswordRegister";
 import { SocialRegister } from "./register/SocialRegister";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
-export const loader: LoaderFunction = async ({ context, params, request }) => {
-  const { session, me, csrf, url, query } = await loaderGuard(request, false);
+export const loader = async ({
+  context,
+  params,
+  request,
+}: LoaderArgs): Promise<TypedJsonResponse<LoaderData>> => {
+  const guard = await loaderGuard(request);
 
-  if (me !== undefined) {
-    return redirect(query.from || "/", { status: 303 });
+  console.log("register url", guard.url);
+
+  if (guard.state === "with-identity") {
+    return redirectToHome(guard);
   }
 
-  if ("flow" in query === false) {
-    const response = await kratos["/self-service/registration/api"].get();
+  const { url, session, csrf } = guard;
+
+  console.log("session", session.data);
+
+  const flow = url.searchParams.get("flow");
+
+  if (flow === null) {
+    const response = await kratos["/self-service/registration/api"].get({
+      query: { return_session_token_exchange_code: true },
+    });
 
     if (response.ok === false) {
-      const json = await response.json();
+      const body = await response.json();
 
-      throw serverError(json.error);
+      console.log(
+        "register loader",
+        response.status,
+        JSON.stringify(body, null, 2)
+      );
+
+      throw serverError(body.error.message);
     }
 
-    const flow = await response.json();
+    const body = await response.json();
 
-    url.searchParams.set("flow", flow.id);
+    console.log(
+      "register loader",
+      response.status,
+      JSON.stringify(body, null, 2)
+    );
+
+    session.set(
+      "session_token_exchange_code",
+      body.session_token_exchange_code
+    );
+
+    url.searchParams.set("flow", body.id);
 
     return redirect(url.toString(), {
       status: 303,
@@ -43,7 +80,7 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
   }
 
   const response = await kratos["/self-service/registration/flows"].get({
-    query: { id: query.flow },
+    query: { id: flow },
   });
 
   if (response.ok === false) {
@@ -55,11 +92,31 @@ export const loader: LoaderFunction = async ({ context, params, request }) => {
     });
   }
 
+  const body = await response.json();
+
+  console.log(
+    "register loader",
+    response.status,
+    JSON.stringify(body, null, 2)
+  );
+
+  const { messages = [] } = body.ui;
+
+  if (messages.length > 0) {
+    switch (messages[0].type) {
+      case "error": {
+        throw serverError(messages[0].text);
+      }
+    }
+  }
+
   return json(
     { csrf },
     { headers: { "set-cookie": await sessionStorage.commitSession(session) } }
   );
 };
+
+export type LoaderResponse = typeof loader;
 
 export default () => {
   return (
@@ -85,20 +142,38 @@ const actionSchema = z.intersection(
     z.object({ type: z.literal("apple") }),
   ])
 );
-export const action: ActionFunction = async ({ params, request }) => {
-  const { session, receivedValues, errors, data, query } = await actionGuard(
-    request,
-    actionSchema
-  );
+export const action = async ({
+  params,
+  request,
+}: ActionArgs): Promise<TypedJsonResponse<ActionData>> => {
+  const guard = await actionGuard(request, actionSchema);
 
-  if (errors) {
-    return actionResponse(errors, receivedValues);
+  if (guard.state === "not-valid") {
+    return json<ActionData>({
+      state: "not-valid",
+      messages: guard.messages,
+
+      defaultValues: guard.defaultValues,
+    });
+  }
+
+  const { url, session, data } = guard;
+
+  const flow = url.searchParams.get("flow");
+
+  if (flow === null) {
+    return json<ActionData>({
+      state: "failure",
+      message: "Missing required parameter",
+
+      defaultValues: guard.defaultValues,
+    });
   }
 
   switch (data.type) {
     case "register": {
       const response = await kratos["/self-service/registration"].post({
-        query: { flow: query.flow },
+        query: { flow },
         json: {
           method: "password",
           traits: { email: data.email },
@@ -106,85 +181,578 @@ export const action: ActionFunction = async ({ params, request }) => {
         },
       });
 
-      if (response.ok === false) {
-        const text = await response.text();
+      switch (response.status) {
+        case 200: {
+          const body = await response.json();
 
-        return serverError({ message: text });
+          console.log(
+            "register password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          session.set("session_token", body.session_token);
+
+          return redirect(url.searchParams.get("from") || "/", {
+            status: 303,
+            headers: {
+              "set-cookie": await sessionStorage.commitSession(session),
+            },
+          });
+        }
+        case 400: {
+          const body = await response.json();
+
+          console.log(
+            "register password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          const { messages = [] } = body.ui;
+
+          if (messages.length > 0) {
+            switch (messages[0].type) {
+              case "error": {
+                return json<ActionData>({
+                  state: "failure",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+              case "info":
+              case "success": {
+                return json<ActionData>({
+                  state: "success",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+            }
+          }
+
+          break;
+        }
+        case 422: {
+          const body = await response.json();
+
+          console.log(
+            "register password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          if (body.redirect_browser_to !== undefined) {
+            return redirect(body.redirect_browser_to, {
+              status: 303,
+              headers: {
+                "set-cookie": await sessionStorage.commitSession(session),
+              },
+            });
+          }
+
+          if (body.error !== undefined) {
+            return json<ActionData>({
+              state: "failure",
+              // TODO: figure out why openapi + fets produce the incorrect type
+              message: body.error.message,
+
+              defaultValues: guard.defaultValues,
+            });
+          }
+
+          break;
+        }
+        case 410:
+        // 403?
+        default: {
+          const body = await response.json();
+
+          console.log(
+            "register password",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          return json<ActionData>({
+            state: "failure",
+            message: body.error.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        }
       }
 
-      // if (response.status === 303) {
-      //   return;
-      // }
-      // if (response.status === 400) {
-      //   type Type = OASOutput<
-      //     KratosNormalized,
-      //     "/self-service/registration",
-      //     "post",
-      //     "400"
-      //   >;
-      //   const json = (await response.json()) as Type;
-
-      //   return;
-      // }
-      // if (response.status === 410) {
-      //   type Type = OASOutput<
-      //     KratosNormalized,
-      //     "/self-service/registration",
-      //     "post",
-      //     "410"
-      //   >;
-      //   const json = (await response.json()) as Type;
-
-      //   return actionResponse(
-      //     { serverError: json.error.message },
-      //     receivedValues
-      //   );
-      // }
-      // if (response.status === 422) {
-      //   type Type = OASOutput<
-      //     KratosNormalized,
-      //     "/self-service/registration",
-      //     "post",
-      //     "422"
-      //   >;
-      //   const json = (await response.json()) as Type;
-
-      //   return actionResponse(
-      //     {
-      //       serverError:
-      //         json.error === undefined ? "" : json.error.error.message,
-      //     },
-      //     receivedValues
-      //   );
-      // }
-
-      const flow = await response.json();
-
-      session.set("session", flow.session_token);
-
-      return redirect(query.from || "/", {
-        status: 303,
-        headers: {
-          "set-cookie": await sessionStorage.commitSession(session),
-        },
-      });
+      break;
     }
     case "google": {
-      return actionResponse({ serverError: "Not implemented" }, receivedValues);
+      const response = await kratos["/self-service/registration"].post({
+        query: { flow },
+        json: {
+          method: "oidc",
+          provider: "google",
+        },
+      });
+
+      switch (response.status) {
+        case 200: {
+          const body = await response.json();
+
+          console.log(
+            "register google",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          session.set("session_token", body.session_token);
+
+          return redirect(url.searchParams.get("from") || "/", {
+            status: 303,
+            headers: {
+              "set-cookie": await sessionStorage.commitSession(session),
+            },
+          });
+        }
+        case 400: {
+          const body = await response.json();
+
+          console.log(
+            "register google",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          const { messages = [] } = body.ui;
+
+          if (messages.length > 0) {
+            switch (messages[0].type) {
+              case "error": {
+                return json<ActionData>({
+                  state: "failure",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+              case "info":
+              case "success": {
+                return json<ActionData>({
+                  state: "success",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+            }
+          }
+
+          break;
+        }
+        case 422: {
+          const body = await response.json();
+
+          console.log(
+            "register google",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          if (body.redirect_browser_to !== undefined) {
+            return redirect(body.redirect_browser_to, {
+              status: 303,
+              headers: {
+                "set-cookie": await sessionStorage.commitSession(session),
+              },
+            });
+          }
+
+          if (body.error !== undefined) {
+            return json<ActionData>({
+              state: "failure",
+              // TODO: figure out why openapi + fets produce the incorrect type
+              message: body.error.message,
+
+              defaultValues: guard.defaultValues,
+            });
+          }
+
+          break;
+        }
+        case 410:
+        // 403?
+        default: {
+          const body = await response.json();
+
+          console.log(
+            "register google",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          return json<ActionData>({
+            state: "failure",
+            message: body.error.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        }
+      }
+
+      break;
     }
     case "github": {
-      return actionResponse({ serverError: "Not implemented" }, receivedValues);
+      const response = await kratos["/self-service/registration"].post({
+        query: { flow },
+        json: {
+          method: "oidc",
+          provider: "github",
+        },
+      });
+
+      switch (response.status) {
+        case 200: {
+          const body = await response.json();
+
+          console.log(
+            "register github",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          session.set("session_token", body.session_token);
+
+          return redirect(url.searchParams.get("from") || "/", {
+            status: 303,
+            headers: {
+              "set-cookie": await sessionStorage.commitSession(session),
+            },
+          });
+        }
+        case 400: {
+          const body = await response.json();
+
+          console.log(
+            "register github",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          const { messages = [] } = body.ui;
+
+          if (messages.length > 0) {
+            switch (messages[0].type) {
+              case "error": {
+                return json<ActionData>({
+                  state: "failure",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+              case "info":
+              case "success": {
+                return json<ActionData>({
+                  state: "success",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+            }
+          }
+
+          break;
+        }
+        case 422: {
+          const body = await response.json();
+
+          console.log(
+            "register github",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          if (body.redirect_browser_to !== undefined) {
+            return redirect(body.redirect_browser_to, {
+              status: 303,
+              headers: {
+                "set-cookie": await sessionStorage.commitSession(session),
+              },
+            });
+          }
+
+          if (body.error !== undefined) {
+            return json<ActionData>({
+              state: "failure",
+              // TODO: figure out why openapi + fets produce the incorrect type
+              message: body.error.message,
+
+              defaultValues: guard.defaultValues,
+            });
+          }
+
+          break;
+        }
+        case 410:
+        // 403?
+        default: {
+          const body = await response.json();
+
+          console.log(
+            "register github",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          return json<ActionData>({
+            state: "failure",
+            message: body.error.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        }
+      }
+
+      break;
     }
     case "facebook": {
-      return actionResponse({ serverError: "Not implemented" }, receivedValues);
+      const response = await kratos["/self-service/registration"].post({
+        query: { flow },
+        json: {
+          method: "oidc",
+          provider: "facebook",
+        },
+      });
+
+      switch (response.status) {
+        case 200: {
+          const body = await response.json();
+
+          console.log(
+            "facebook",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          session.set("session_token", body.session_token);
+
+          return redirect(url.searchParams.get("from") || "/", {
+            status: 303,
+            headers: {
+              "set-cookie": await sessionStorage.commitSession(session),
+            },
+          });
+        }
+        case 400: {
+          const body = await response.json();
+
+          console.log(
+            "facebook",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          const { messages = [] } = body.ui;
+
+          if (messages.length > 0) {
+            switch (messages[0].type) {
+              case "error": {
+                return json<ActionData>({
+                  state: "failure",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+              case "info":
+              case "success": {
+                return json<ActionData>({
+                  state: "success",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+            }
+          }
+
+          break;
+        }
+        case 422: {
+          const body = await response.json();
+
+          console.log(
+            "facebook",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          if (body.redirect_browser_to !== undefined) {
+            return redirect(body.redirect_browser_to, {
+              status: 303,
+              headers: {
+                "set-cookie": await sessionStorage.commitSession(session),
+              },
+            });
+          }
+
+          if (body.error !== undefined) {
+            return json<ActionData>({
+              state: "failure",
+              // TODO: figure out why openapi + fets produce the incorrect type
+              message: body.error.message,
+
+              defaultValues: guard.defaultValues,
+            });
+          }
+
+          break;
+        }
+        case 410:
+        // 403?
+        default: {
+          const body = await response.json();
+
+          console.log(
+            "facebook",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          return json<ActionData>({
+            state: "failure",
+            message: body.error.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        }
+      }
+
+      break;
     }
     case "apple": {
-      return actionResponse({ serverError: "Not implemented" }, receivedValues);
+      const response = await kratos["/self-service/registration"].post({
+        query: { flow },
+        json: {
+          method: "oidc",
+          provider: "apple",
+        },
+      });
+
+      switch (response.status) {
+        case 200: {
+          const body = await response.json();
+
+          console.log(
+            "register apple",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          session.set("session_token", body.session_token);
+
+          return redirect(url.searchParams.get("from") || "/", {
+            status: 303,
+            headers: {
+              "set-cookie": await sessionStorage.commitSession(session),
+            },
+          });
+        }
+        case 400: {
+          const body = await response.json();
+
+          console.log(
+            "register apple",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          const { messages = [] } = body.ui;
+
+          if (messages.length > 0) {
+            switch (messages[0].type) {
+              case "error": {
+                return json<ActionData>({
+                  state: "failure",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+              case "info":
+              case "success": {
+                return json<ActionData>({
+                  state: "success",
+                  message: messages[0].text,
+
+                  defaultValues: guard.defaultValues,
+                });
+              }
+            }
+          }
+
+          break;
+        }
+        case 422: {
+          const body = await response.json();
+
+          console.log(
+            "register apple",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          if (body.redirect_browser_to !== undefined) {
+            return redirect(body.redirect_browser_to, {
+              status: 303,
+              headers: {
+                "set-cookie": await sessionStorage.commitSession(session),
+              },
+            });
+          }
+
+          if (body.error !== undefined) {
+            return json<ActionData>({
+              state: "failure",
+              // TODO: figure out why openapi + fets produce the incorrect type
+              message: body.error.message,
+
+              defaultValues: guard.defaultValues,
+            });
+          }
+
+          break;
+        }
+        case 410:
+        // 403?
+        default: {
+          const body = await response.json();
+
+          console.log(
+            "register apple",
+            response.status,
+            JSON.stringify(body, null, 2)
+          );
+
+          return json<ActionData>({
+            state: "failure",
+            message: body.error.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        }
+      }
+
+      break;
     }
   }
 
-  return actionResponse(
-    { serverError: "Unsupported operation" },
-    receivedValues
-  );
+  return json<ActionData>({
+    state: "failure",
+    message: "Unsupported operation",
+
+    defaultValues: guard.defaultValues,
+  });
 };

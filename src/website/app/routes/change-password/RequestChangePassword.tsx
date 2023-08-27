@@ -1,5 +1,8 @@
-import { useFetcher, useLoaderData } from "@remix-run/react";
 import { FC } from "react";
+import {
+  useTypedFetcher as useFetcher,
+  useTypedLoaderData as useLoaderData,
+} from "remix-typedjson";
 import { EmailInput } from "~/forms/EmailInput";
 import { SubmitButton } from "~/forms/SubmitButton";
 import { FetcherContext, useFetcherContext } from "~/hooks/useFetcherContext";
@@ -8,11 +11,11 @@ import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { ServerMessage } from "~/layout/ServerMessage";
 import { TextLink } from "~/layout/TextLink";
-import { ActionResponse } from "~/utils";
+import { ActionData, LoaderData } from "~/utils";
 
 export const RequestChangePassword: FC = () => {
-  const { csrf } = useLoaderData();
-  const fetcher = useFetcher<ActionResponse>();
+  const { csrf } = useLoaderData<LoaderData>();
+  const fetcher = useFetcher<ActionData>();
 
   return (
     <Section>
@@ -46,9 +49,11 @@ const RequestChangePasswordSubmitButton = () => {
 
   const type = "request-change-password";
   const submitting =
-    fetcher?.state === "submitting"
-      ? fetcher.formData?.get("type") === type
-      : false;
+    fetcher === undefined ||
+    fetcher.formData === undefined ||
+    fetcher.state !== "submitting"
+      ? false
+      : fetcher.formData.get("type") === type;
 
   return (
     <SubmitButton type={type} disabled={submitting}>

@@ -1,5 +1,8 @@
-import { useFetcher, useLoaderData } from "@remix-run/react";
 import { FC } from "react";
+import {
+  useTypedFetcher as useFetcher,
+  useTypedLoaderData as useLoaderData,
+} from "remix-typedjson";
 import { EmailInput } from "~/forms/EmailInput";
 import { SubmitButton } from "~/forms/SubmitButton";
 import { FetcherContext, useFetcherContext } from "~/hooks/useFetcherContext";
@@ -9,7 +12,7 @@ import { SectionItem } from "~/layout/SectionItem";
 import { ServerMessage } from "~/layout/ServerMessage";
 import { TextLink } from "~/layout/TextLink";
 import { RegisterPasswordInput } from "~/routes/register/RegisterPasswordInput";
-import { ActionResponse } from "~/utils";
+import { ActionData, LoaderData } from "~/utils";
 
 // const initialState = {
 //   passwordVisible: false,
@@ -28,8 +31,8 @@ import { ActionResponse } from "~/utils";
 // });
 
 export const PasswordRegister: FC = () => {
-  const { csrf } = useLoaderData();
-  const fetcher = useFetcher<ActionResponse>();
+  const { csrf } = useLoaderData<LoaderData>();
+  const fetcher = useFetcher<ActionData>();
 
   return (
     <Section>
@@ -66,9 +69,11 @@ const RegisterSubmitButton = () => {
 
   const type = "register";
   const submitting =
-    fetcher?.state === "submitting"
-      ? fetcher.formData?.get("type") === type
-      : false;
+    fetcher === undefined ||
+    fetcher.formData === undefined ||
+    fetcher.state !== "submitting"
+      ? false
+      : fetcher.formData.get("type") === type;
 
   return (
     <SubmitButton type={type} disabled={submitting}>

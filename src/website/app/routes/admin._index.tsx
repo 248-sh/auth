@@ -4,31 +4,55 @@ import {
   EnvelopeIcon,
   UserIcon,
 } from "@heroicons/react/20/solid";
-import { json, LoaderFunction } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { LoaderArgs } from "@remix-run/node";
+import { Link } from "@remix-run/react";
 import { format, parseISO } from "date-fns";
+import {
+  typedjson as json,
+  TypedJsonResponse,
+  useTypedLoaderData as useLoaderData,
+} from "remix-typedjson";
 import { Page } from "~/layout/Page";
 import { PageHeader } from "~/layout/PageHeader";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
+import { KratosIdentity } from "~/openapi/kratos";
 import { listIdentities } from "~/ory.server";
-import { loaderGuard } from "~/utils";
+import { LoaderData, loaderGuard, redirectToLogin } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
-export const loader: LoaderFunction = async ({ context, params, request }) => {
-  const { session, csrf, url, query } = await loaderGuard(request);
+export const loader = async ({
+  context,
+  params,
+  request,
+}: LoaderArgs): Promise<
+  TypedJsonResponse<
+    LoaderData & {
+      users: KratosIdentity[];
+    }
+  >
+> => {
+  const guard = await loaderGuard(request);
+
+  if (guard.state === "without-identity") {
+    return redirectToLogin(guard);
+  }
+
+  const { csrf } = guard;
 
   // TODO: check session and permissions
 
   const [users] = await Promise.all([listIdentities(1)]);
 
-  return json({ users } as const);
+  return json({ csrf, users } as const);
 };
 
+export type LoaderResponse = typeof loader;
+
 export default () => {
-  const { users } = useLoaderData();
+  const { users } = useLoaderData<LoaderResponse>();
 
   return (
     <Page>

@@ -4,29 +4,45 @@ import {
   EnvelopeIcon,
   UserIcon,
 } from "@heroicons/react/20/solid";
-import { json, LoaderFunction } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { LoaderArgs } from "@remix-run/node";
+import { Link } from "@remix-run/react";
 import { format, parseISO } from "date-fns";
+import {
+  typedjson as json,
+  TypedJsonResponse,
+  useTypedLoaderData as useLoaderData,
+} from "remix-typedjson";
 import { Page } from "~/layout/Page";
 import { PageHeader } from "~/layout/PageHeader";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
-import { join } from "~/utils";
+import { join, LoaderData, loaderGuard } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
-export const loader: LoaderFunction = async ({ context, params, request }) => {
+export const loader = async ({
+  context,
+  params,
+  request,
+}: LoaderArgs): Promise<TypedJsonResponse<LoaderData>> => {
   console.log("loader context", context);
   console.log("loader params", params);
   console.log("loader request.headers", request.headers);
   // console.log("loader request", request);
 
-  return json({ users: [] } as const);
+  const guard = await loaderGuard(request);
+
+  const { csrf } = guard;
+
+  return json({ csrf } as const);
 };
 
+export type LoaderResponse = typeof loader;
+
 export default () => {
-  const { users } = useLoaderData();
+  const {} = useLoaderData<LoaderResponse>();
+  const users: any[] = [];
 
   return (
     <Page>

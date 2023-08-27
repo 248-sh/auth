@@ -1,9 +1,10 @@
-import { Session } from "@ory/kratos-client";
+import { FC } from "react";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
+import { KratosSession } from "~/openapi/kratos";
 
-export const SessionDetails: FC<{ session: Session }> = ({ session }) => (
+export const SessionDetails: FC<{ session: KratosSession }> = ({ session }) => (
   <Section>
     <SectionHeader
       title="Session Details"
