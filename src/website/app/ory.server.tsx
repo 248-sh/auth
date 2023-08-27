@@ -8,17 +8,17 @@ import { Kratos } from "~/openapi/kratos";
 // );
 // export const identity = new IdentityApi(
 //   undefined,
-//   process.env.KRATOS_ADMIN_URL
+//   process.env.KRATOS_ADMIN_ENDPOINT
 // );
 // export const frontend = new FrontendApi(
 //   undefined,
-//   process.env.KRATOS_PUBLIC_URL
+//   process.env.KRATOS_PUBLIC_ENDPOINT
 // );
 // export const oathkeeper = new ApiApi(undefined, "http://localhost:4456");
 
 export const kratos = createClient<Kratos>({
-  // endpoint: process.env.KRATOS_ADMIN_URL,
-  endpoint: process.env.KRATOS_PUBLIC_URL,
+  // endpoint: process.env.KRATOS_ADMIN_ENDPOINT,
+  endpoint: process.env.KRATOS_PUBLIC_ENDPOINT,
 });
 
 // admin
