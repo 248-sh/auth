@@ -257,6 +257,7 @@ export const action = async ({
             return json<ActionData>({
               state: "failure",
               // TODO: figure out why openapi + fets produce the incorrect type
+              // @ts-ignore
               message: body.error.message,
 
               defaultValues: guard.defaultValues,
@@ -372,6 +373,7 @@ export const action = async ({
             return json<ActionData>({
               state: "failure",
               // TODO: figure out why openapi + fets produce the incorrect type
+              // @ts-ignore
               message: body.error.message,
 
               defaultValues: guard.defaultValues,
@@ -487,6 +489,7 @@ export const action = async ({
             return json<ActionData>({
               state: "failure",
               // TODO: figure out why openapi + fets produce the incorrect type
+              // @ts-ignore
               message: body.error.message,
 
               defaultValues: guard.defaultValues,
@@ -602,6 +605,7 @@ export const action = async ({
             return json<ActionData>({
               state: "failure",
               // TODO: figure out why openapi + fets produce the incorrect type
+              // @ts-ignore
               message: body.error.message,
 
               defaultValues: guard.defaultValues,
@@ -717,6 +721,7 @@ export const action = async ({
             return json<ActionData>({
               state: "failure",
               // TODO: figure out why openapi + fets produce the incorrect type
+              // @ts-ignore
               message: body.error.message,
 
               defaultValues: guard.defaultValues,

@@ -80,7 +80,11 @@ export const loader = async ({
 
     const body = await response.json();
 
-    console.log("_index loader", response.status, JSON.stringify(body, null, 2));
+    console.log(
+      "_index loader",
+      response.status,
+      JSON.stringify(body, null, 2)
+    );
 
     session.unset("session_token_exchange_code");
 
@@ -135,8 +139,8 @@ export default () => {
       <CurrentSession session={currentSession} />
       <OtherSessions sessions={otherSessions} />
       {/* <Roles roles={roles} /> */}
-      <Account user={user} />
-      <Profile user={user} />
+      {/* <Account user={user} />
+      <Profile user={user} /> */}
     </Page>
     //   <Page>
     //   <CurrentSession session={currentSession} />
@@ -189,6 +193,12 @@ export const action = async ({
 
       if (response.ok === false) {
         const body = await response.json();
+
+        console.log(
+          "_index remove-session",
+          response.status,
+          JSON.stringify(body, null, 2)
+        );
 
         return json<ActionData>({
           state: "failure",
@@ -419,7 +429,7 @@ const Profile: FC<{ user: KratosIdentity }> = ({ user }) => {
         <div className="sm:grid sm:grid-cols-3 sm:gap-4">
           <div className="text-sm font-medium text-slate-500">Email</div>
           <div className="mt-1 flex text-sm text-slate-900 sm:col-span-2 sm:mt-0">
-            <span className="flex-grow">{traits.email}</span>
+            {/* <span className="flex-grow">{traits.email}</span> */}
             <span className="ml-4 flex-shrink-0">
               <button
                 type="button"

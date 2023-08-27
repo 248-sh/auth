@@ -3,9 +3,9 @@ import { FC } from "react";
 import { join } from "~/utils";
 
 export const SidebarItem: FC<{
-  icon: any;
-  image: string;
-  name: string;
+  icon?: any;
+  image?: string;
+  name?: string;
   to: string;
 }> = ({ icon: Icon, image, name, to }) => (
   <div className="md:w-16 bg-slate-100 group h-14 relative rounded-md">

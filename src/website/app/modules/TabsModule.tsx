@@ -1,3 +1,4 @@
+import { FC } from "react";
 import { join } from "~/utils";
 
 // const tabs = [
@@ -9,7 +10,9 @@ import { join } from "~/utils";
 //   { name: "Team Members", href: "#", current: false },
 // ];
 
-export const TabsModule = ({ tabs }) => {
+export const TabsModule: FC<{
+  tabs: { name: string; href: string; current: boolean }[];
+}> = ({ tabs }) => {
   return (
     <>
       <div className="lg:hidden">
@@ -20,7 +23,7 @@ export const TabsModule = ({ tabs }) => {
           id="selected-tab"
           name="selected-tab"
           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
-          defaultValue={tabs.find((tab) => tab.current).name}
+          defaultValue={tabs.find((tab) => tab.current)?.name}
         >
           {tabs.map((tab) => (
             <option key={tab.name}>{tab.name}</option>

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   CalendarIcon,
   ChevronRightIcon,
@@ -17,7 +18,9 @@ import { PageHeader } from "~/layout/PageHeader";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
-import { join, LoaderData, loaderGuard } from "~/utils";
+import { KratosIdentity } from "~/openapi/kratos";
+import { listIdentities } from "~/ory.server";
+import { LoaderData, loaderGuard, redirectToLogin } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
@@ -25,28 +28,36 @@ export const loader = async ({
   context,
   params,
   request,
-}: LoaderArgs): Promise<TypedJsonResponse<LoaderData>> => {
-  console.log("loader context", context);
-  console.log("loader params", params);
-  console.log("loader request.headers", request.headers);
-  // console.log("loader request", request);
-
+}: LoaderArgs): Promise<
+  TypedJsonResponse<
+    LoaderData & {
+      users: KratosIdentity[];
+    }
+  >
+> => {
   const guard = await loaderGuard(request);
+
+  if (guard.state === "without-identity") {
+    return redirectToLogin(guard);
+  }
 
   const { csrf } = guard;
 
-  return json({ csrf } as const);
+  // TODO: check session and permissions
+
+  const [users] = await Promise.all([listIdentities(1)]);
+
+  return json({ csrf, users } as const);
 };
 
 export type LoaderResponse = typeof loader;
 
 export default () => {
-  const {} = useLoaderData<LoaderResponse>();
-  const users: any[] = [];
+  const { users } = useLoaderData<LoaderResponse>();
 
   return (
     <Page>
-      <PageHeader title="Consent" />
+      <PageHeader title="Users" />
 
       <Section>
         <SectionHeader
@@ -56,7 +67,7 @@ export default () => {
 
         {users.map((user, i) => {
           const { id, traits } = user;
-          const name = join(traits.name.first, traits.name.last);
+          const name = "Name"; // join(traits.name.first, traits.name.last);
           const createdAt = format(
             parseISO(user.created_at),
             "yyyy-MM-dd HH:mm:SS"

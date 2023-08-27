@@ -4,7 +4,7 @@ import { FC, Fragment } from "react";
 import { SidebarItem } from "~/layout/SidebarItem";
 
 export const Sidebar: FC<{
-  navigation: object[];
+  navigation: { name: string; path: string; icon: any | undefined }[];
   onSidebarClose: () => void;
   sidebarOpen: boolean;
 }> = ({ navigation, onSidebarClose, sidebarOpen }) => (

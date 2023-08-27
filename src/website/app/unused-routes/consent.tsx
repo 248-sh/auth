@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   CalendarIcon,
   ChevronRightIcon,
@@ -17,9 +18,7 @@ import { PageHeader } from "~/layout/PageHeader";
 import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
-import { KratosIdentity } from "~/openapi/kratos";
-import { listIdentities } from "~/ory.server";
-import { LoaderData, loaderGuard, redirectToLogin } from "~/utils";
+import { join, LoaderData, loaderGuard } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
@@ -27,36 +26,28 @@ export const loader = async ({
   context,
   params,
   request,
-}: LoaderArgs): Promise<
-  TypedJsonResponse<
-    LoaderData & {
-      users: KratosIdentity[];
-    }
-  >
-> => {
-  const guard = await loaderGuard(request);
+}: LoaderArgs): Promise<TypedJsonResponse<LoaderData>> => {
+  console.log("loader context", context);
+  console.log("loader params", params);
+  console.log("loader request.headers", request.headers);
+  // console.log("loader request", request);
 
-  if (guard.state === "without-identity") {
-    return redirectToLogin(guard);
-  }
+  const guard = await loaderGuard(request);
 
   const { csrf } = guard;
 
-  // TODO: check session and permissions
-
-  const [users] = await Promise.all([listIdentities(1)]);
-
-  return json({ csrf, users } as const);
+  return json({ csrf } as const);
 };
 
 export type LoaderResponse = typeof loader;
 
 export default () => {
-  const { users } = useLoaderData<LoaderResponse>();
+  const {} = useLoaderData<LoaderResponse>();
+  const users: any[] = [];
 
   return (
     <Page>
-      <PageHeader title="Users" />
+      <PageHeader title="Consent" />
 
       <Section>
         <SectionHeader
@@ -66,7 +57,7 @@ export default () => {
 
         {users.map((user, i) => {
           const { id, traits } = user;
-          const name = "Name"; // join(traits.name.first, traits.name.last);
+          const name = join(traits.name.first, traits.name.last);
           const createdAt = format(
             parseISO(user.created_at),
             "yyyy-MM-dd HH:mm:SS"

@@ -27,16 +27,16 @@ export const OtherSessions: FC<{ sessions: KratosSession[] }> = ({ sessions }) =
         />
 
         {sessions.map((session, i) => (
-          <Link
-            key={session.id}
-            to="#"
-            onClick={() => setSelectedSession(session)}
-            className="block"
-          >
-            <SectionItem withStripe={i % 2 === 0}>
+          // <Link
+          //   key={session.id}
+          //   to="#"
+          //   onClick={() => setSelectedSession(session)}
+          //   className="block"
+          // >
+            <SectionItem key={session.id} withStripe={i % 2 === 0}>
               <SessionItem session={session} />
             </SectionItem>
-          </Link>
+          // </Link>
         ))}
       </Section>
       {selectedSession !== null && <SessionDetails session={selectedSession} />}

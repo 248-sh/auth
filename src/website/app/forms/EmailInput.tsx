@@ -1,8 +1,10 @@
 import { EnvelopeIcon } from "@heroicons/react/20/solid";
+import { useSearchParams } from "@remix-run/react";
 import { useFetcherData } from "~/hooks/useFetcherContext";
 import { FieldError } from "~/layout/FieldError";
 
 export const EmailInput = ({ name = "email" }) => {
+  const [query] = useSearchParams();
   const { defaultValues = {} } = useFetcherData() || {};
 
   return (
@@ -27,7 +29,7 @@ export const EmailInput = ({ name = "email" }) => {
             placeholder="john@example.com"
             name={name}
             id={name}
-            defaultValue={defaultValues[name]}
+            defaultValue={defaultValues[name] || query.get("email") || ""}
             className="block w-full rounded-md border-0 py-1.5 pl-10 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-slate-600 sm:text-sm sm:leading-6"
           />
         </div>

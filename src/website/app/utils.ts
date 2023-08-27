@@ -22,7 +22,7 @@ export type LoaderData = {
   csrf: string;
 };
 
-type LoaderGuard = (WithoutIdentity | WithIdentity) & {
+export type LoaderGuard = (WithoutIdentity | WithIdentity) & {
   url: URL;
   session: Session;
   csrf: string;
@@ -96,7 +96,10 @@ const schemaGuard = <S extends z.ZodType<any, any, any>>(
   return { state: "valid", data: parsed.data };
 };
 
-type ActionGuard<S extends z.ZodType<any, any, any>> = (NotValid | Valid<S>) & {
+export type ActionGuard<S extends z.ZodType<any, any, any>> = (
+  | NotValid
+  | Valid<S>
+) & {
   url: URL;
   session: Session;
   defaultValues: Input;

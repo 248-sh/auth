@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Switch } from "@headlessui/react";
 import { CalendarIcon } from "@heroicons/react/20/solid";
 import { ActionArgs, LoaderArgs } from "@remix-run/node";
@@ -28,7 +29,7 @@ import {
   loaderGuard,
   redirectToLogin,
 } from "~/utils";
-import { SessionDetails } from "./index/SessionDetails";
+import { SessionDetails } from "../index/SessionDetails";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
@@ -77,7 +78,7 @@ export default () => {
 
   const { id, traits } = user;
   const name = "Name"; // join(traits.name.first, traits.name.last);
-  const createdAt = format(parseISO(user.created_at), "yyyy-MM-dd HH:mm:SS");
+  // const createdAt = format(parseISO(user.created_at), "yyyy-MM-dd HH:mm:SS");
 
   return (
     <Page>
@@ -85,8 +86,8 @@ export default () => {
 
       <Sessions sessions={sessions} />
       {/* <Roles roles={roles} /> */}
-      <Account user={user} />
-      <Profile user={user} />
+      {/* <Account user={user} />
+      <Profile user={user} /> */}
     </Page>
   );
 };
@@ -393,7 +394,7 @@ const Account: FC<{ user: KratosIdentity }> = ({ user }) => {
 const Profile: FC<{ user: KratosIdentity }> = ({ user }) => {
   const { id, traits } = user;
   const name = "Name"; // join(traits.name.first, traits.name.last);
-  const createdAt = format(parseISO(user.created_at), "yyyy-MM-dd HH:mm:SS");
+  // const createdAt = format(parseISO(user.created_at), "yyyy-MM-dd HH:mm:SS");
 
   return (
     <Section>
@@ -453,7 +454,7 @@ const Profile: FC<{ user: KratosIdentity }> = ({ user }) => {
         <div className="sm:grid sm:grid-cols-3 sm:gap-4">
           <div className="text-sm font-medium text-slate-500">Email</div>
           <div className="mt-1 flex text-sm text-slate-900 sm:col-span-2 sm:mt-0">
-            <span className="flex-grow">{traits.email}</span>
+            {/* <span className="flex-grow">{traits.email}</span> */}
             <span className="ml-4 flex-shrink-0">
               <button
                 type="button"

@@ -1,6 +1,9 @@
 import { Bars3Icon } from "@heroicons/react/20/solid";
+import { FC } from "react";
 
-export const MobileHeaderModule = ({ onSidebarOpen }) => {
+export const MobileHeaderModule: FC<{ onSidebarOpen: () => void }> = ({
+  onSidebarOpen,
+}) => {
   return (
     <div className="md:hidden bg-slate-100 pl-1 pt-1 sticky top-0 z-10">
       <button
