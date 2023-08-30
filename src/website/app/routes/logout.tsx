@@ -1,10 +1,9 @@
 import { LoaderArgs } from "@remix-run/node";
 import { Oval } from "react-loader-spinner";
-import { redirect, TypedJsonResponse } from "remix-typedjson";
+import { TypedJsonResponse } from "remix-typedjson";
 import { Around } from "~/layout/Around";
-import { kratos } from "~/ory.server";
-import { sessionStorage } from "~/session.server";
-import { loaderGuard } from "~/utils";
+import { performNativeLogout } from "~/services/kratos/performNativeLogout";
+import { loaderGuard, redirectToHome } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
 
@@ -13,16 +12,13 @@ export const loader = async ({
   params,
   request,
 }: LoaderArgs): Promise<TypedJsonResponse<never>> => {
-  const { url, session } = await loaderGuard(request);
+  const guard = await loaderGuard(request);
 
-  await kratos["/self-service/logout/api"].delete({
-    json: { session_token: session.get("session_token") },
+  await performNativeLogout({
+    json: { session_token: guard.session.get("session_token") },
   });
 
-  return redirect(url.searchParams.get("from") || "/", {
-    status: 303,
-    headers: { "set-cookie": await sessionStorage.destroySession(session) },
-  });
+  return redirectToHome(guard);
 };
 
 export type LoaderResponse = typeof loader;

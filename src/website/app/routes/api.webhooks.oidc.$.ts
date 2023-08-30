@@ -8,11 +8,7 @@ const kratosUrl = process.env.KRATOS_PUBLIC_ENDPOINT;
 export const loader = async ({ params, request }: LoaderArgs) => {
   const guard = await loaderGuard(request);
 
-  console.log("api/webhooks/oidc loader params", params);
-
   const { url, session } = guard;
-
-  console.log("session", session.data);
 
   return redirect(`${kratosUrl}/${params["*"]}?${url.searchParams}`, {
     status: 303,

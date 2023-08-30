@@ -3,7 +3,7 @@ import { Switch } from "@headlessui/react";
 import { CalendarIcon } from "@heroicons/react/20/solid";
 import { ActionArgs, LoaderArgs } from "@remix-run/node";
 import { Link } from "@remix-run/react";
-import { format, formatDistance, isAfter, parseISO } from "date-fns";
+import { formatDistance, isAfter, parseISO } from "date-fns";
 import { FC, useState } from "react";
 import {
   typedjson as json,
@@ -20,7 +20,9 @@ import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { ServerMessage } from "~/layout/ServerMessage";
 import { KratosIdentity, KratosSession } from "~/openapi/kratos";
-import { getIdentity, kratos, listIdentitySessions } from "~/ory.server";
+import { disableSession } from "~/services/kratos/disableSession";
+import { getIdentity } from "~/services/kratos/getIdentity";
+import { listIdentitySessions } from "~/services/kratos/listIdentitySessions";
 import {
   ActionData,
   actionGuard,
@@ -46,7 +48,7 @@ export const loader = async ({
 > => {
   const guard = await loaderGuard(request);
 
-  if (guard.state === "without-identity") {
+  if (guard.type === "without-identity") {
     return redirectToLogin(guard);
   }
 
@@ -55,8 +57,14 @@ export const loader = async ({
   // TODO: check session and permissions
 
   const [user, sessions, tuples] = await Promise.all([
-    getIdentity(userId!),
-    listIdentitySessions(userId!),
+    getIdentity({
+      headers: { Authorization: "" },
+      params: { id: userId },
+    }),
+    listIdentitySessions({
+      headers: { Authorization: "" },
+      params: { id: userId },
+    }),
     // keto.getRelationships({ subjectId: userId }),
     null,
   ]);
@@ -107,46 +115,45 @@ export const action = async ({
 }: ActionArgs): Promise<TypedJsonResponse<ActionData>> => {
   const guard = await actionGuard(request, actionSchema);
 
-  if (guard.state === "not-valid") {
-    return json<ActionData>({
-      state: "not-valid",
+  if (guard.type === "not-valid") {
+    return json({
+      type: "not-valid",
       messages: guard.messages,
 
       defaultValues: guard.defaultValues,
     });
   }
 
-  const { url, session, data } = guard;
+  const { data } = guard;
 
   switch (data.type) {
     case "remove-session": {
-      const response = await kratos["/admin/sessions/{id}"].delete({
+      const response = await disableSession({
         headers: { Authorization: "" },
         params: { id: data.sessionId },
       });
 
-      if (response.ok === false) {
-        const body = await response.json();
+      switch (response.type) {
+        case "failure":
+          return json({
+            type: "failure",
+            message: response.message,
 
-        return json<ActionData>({
-          state: "failure",
-          message: body.error.message,
+            defaultValues: guard.defaultValues,
+          });
+        case "success":
+          return json({
+            type: "success",
+            message: response.message,
 
-          defaultValues: guard.defaultValues,
-        });
+            defaultValues: guard.defaultValues,
+          });
       }
-
-      return json<ActionData>({
-        state: "success",
-        message: `Revoked session ${data.sessionId}`,
-
-        defaultValues: guard.defaultValues,
-      });
     }
   }
 
-  return json<ActionData>({
-    state: "failure",
+  return json({
+    type: "failure",
     message: "Unsupported operation",
 
     defaultValues: guard.defaultValues,
@@ -238,7 +245,7 @@ const SessionItem: FC<{ session: KratosSession }> = ({ session }) => {
               disabled={submitting}
               className={join(
                 "relative -ml-px inline-flex items-center rounded-r-md border border-slate-300 bg-orange-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-orange-100 focus:z-10 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500",
-                submitting ? "opacity-50" : ""
+                submitting ? "pointer-events-none opacity-50" : ""
               )}
             >
               {submitting ? "Removing" : "Remove"}

@@ -25,7 +25,7 @@ export const FormField: FC<{
       disabled={disabled}
       className={join(
         "sm:col-span-2 sm:h-10 sm:mt-0 sm:text-sm focus:ring-slate-500 focus:border-slate-500 bg-white border-2 border-slate-300 col-span-3 mt-1 px-2 rounded-md",
-        disabled ? "opacity-50" : ""
+        disabled ? "pointer-events-none opacity-50" : ""
       )}
     />
   </div>

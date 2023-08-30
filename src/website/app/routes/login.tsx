@@ -8,7 +8,9 @@ import { serverError } from "remix-utils";
 import { z } from "zod";
 import { Footer } from "~/layout/Footer";
 import { Page } from "~/layout/Page";
-import { kratos } from "~/ory.server";
+import { createNativeLoginFlow } from "~/services/kratos/createNativeLoginFlow";
+import { getLoginFlow } from "~/services/kratos/getLoginFlow";
+import { updateLoginFlow } from "~/services/kratos/updateLoginFlow";
 import { sessionStorage } from "~/session.server";
 import {
   ActionData,
@@ -29,83 +31,61 @@ export const loader = async ({
 }: LoaderArgs): Promise<TypedJsonResponse<LoaderData>> => {
   const guard = await loaderGuard(request);
 
-  console.log("login url", guard.url);
-
-  if (guard.state === "with-identity") {
+  if (guard.type === "with-identity") {
     return redirectToHome(guard);
   }
 
   const { url, session, csrf } = guard;
 
-  console.log("session", session.data);
-
   const flow = url.searchParams.get("flow");
 
   if (flow === null) {
-    const response = await kratos["/self-service/login/api"].get({
+    const response = await createNativeLoginFlow({
       query: { aal: "aal1", return_session_token_exchange_code: true },
     });
 
-    if (response.ok === false) {
-      const body = await response.json();
+    switch (response.type) {
+      case "failure":
+        throw serverError(response.message);
+      case "success":
+        session.set(
+          "session_token_exchange_code",
+          response.session_token_exchange_code
+        );
 
-      console.log(
-        "login loader",
-        response.status,
-        JSON.stringify(body, null, 2)
-      );
+        url.searchParams.set("flow", response.flow);
 
-      throw serverError(body.error.message);
+        return redirect(url.toString(), {
+          status: 303,
+          headers: {
+            "set-cookie": await sessionStorage.commitSession(session),
+          },
+        });
     }
-
-    const body = await response.json();
-
-    console.log("login loader", response.status, JSON.stringify(body, null, 2));
-
-    session.set(
-      "session_token_exchange_code",
-      body.session_token_exchange_code
-    );
-
-    url.searchParams.set("flow", body.id);
-
-    return redirect(url.toString(), {
-      status: 303,
-      headers: { "set-cookie": await sessionStorage.commitSession(session) },
-    });
   }
 
-  const response = await kratos["/self-service/login/flows"].get({
+  const response = await getLoginFlow({
     query: { id: flow },
   });
 
-  if (response.ok === false) {
-    url.searchParams.delete("flow");
+  switch (response.type) {
+    case "failure":
+      url.searchParams.delete("flow");
 
-    return redirect(url.toString(), {
-      status: 303,
-      headers: { "set-cookie": await sessionStorage.commitSession(session) },
-    });
+      return redirect(url.toString(), {
+        status: 303,
+        headers: { "set-cookie": await sessionStorage.commitSession(session) },
+      });
+    case "success":
+      return json(
+        { csrf },
+        {
+          headers: {
+            "set-cookie": await sessionStorage.commitSession(session),
+          },
+        }
+      );
   }
-
-  const body = await response.json();
-
-  console.log("login loader", response.status, JSON.stringify(body, null, 2));
-
-  const { messages = [] } = body.ui;
-
-  if (messages.length > 0) {
-    switch (messages[0].type) {
-      case "error": {
-        throw serverError(messages[0].text);
-      }
-    }
-  }
-
-  return json(
-    { csrf },
-    { headers: { "set-cookie": await sessionStorage.commitSession(session) } }
-  );
 };
 
 export type LoaderResponse = typeof loader;
@@ -140,9 +120,9 @@ export const action = async ({
 }: ActionArgs): Promise<TypedJsonResponse<ActionData>> => {
   const guard = await actionGuard(request, actionSchema);
 
-  if (guard.state === "not-valid") {
-    return json<ActionData>({
-      state: "not-valid",
+  if (guard.type === "not-valid") {
+    return json({
+      type: "not-valid",
       messages: guard.messages,
 
       defaultValues: guard.defaultValues,
@@ -154,17 +134,19 @@ export const action = async ({
   const flow = url.searchParams.get("flow");
 
   if (flow === null) {
-    return json<ActionData>({
-      state: "failure",
+    return json({
+      type: "failure",
       message: "Missing required parameter",
 
       defaultValues: guard.defaultValues,
     });
   }
 
+  let response;
+
   switch (data.type) {
-    case "login": {
-      const response = await kratos["/self-service/login"].post({
+    case "login":
+      response = await updateLoginFlow({
         query: { flow },
         json: {
           method: "password",
@@ -173,583 +155,62 @@ export const action = async ({
         },
       });
 
-      switch (response.status) {
-        case 200: {
-          const body = await response.json();
-
-          console.log(
-            "login password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          session.set("session_token", body.session_token);
-
-          return redirect(url.searchParams.get("from") || "/", {
-            status: 303,
-            headers: {
-              "set-cookie": await sessionStorage.commitSession(session),
-            },
-          });
-        }
-        case 400: {
-          const body = await response.json();
-
-          console.log(
-            "login password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          const { messages = [] } = body.ui;
-
-          if (messages.length > 0) {
-            switch (messages[0].type) {
-              case "error": {
-                return json<ActionData>({
-                  state: "failure",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-              case "info":
-              case "success": {
-                return json<ActionData>({
-                  state: "success",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-            }
-          }
-
-          break;
-        }
-        case 422: {
-          const body = await response.json();
-
-          console.log(
-            "login password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          if (body.redirect_browser_to !== undefined) {
-            return redirect(body.redirect_browser_to, {
-              status: 303,
-              headers: {
-                "set-cookie": await sessionStorage.commitSession(session),
-              },
-            });
-          }
-
-          if (body.error !== undefined) {
-            return json<ActionData>({
-              state: "failure",
-              // TODO: figure out why openapi + fets produce the incorrect type
-              // @ts-ignore
-              message: body.error.message,
-
-              defaultValues: guard.defaultValues,
-            });
-          }
-
-          break;
-        }
-        case 410:
-        // 403?
-        default: {
-          const body = await response.json();
-
-          console.log(
-            "login password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          return json<ActionData>({
-            state: "failure",
-            message: body.error.message,
-
-            defaultValues: guard.defaultValues,
-          });
-        }
-      }
-
       break;
-    }
-    case "google": {
-      const response = await kratos["/self-service/login"].post({
+    case "google":
+      response = await updateLoginFlow({
         query: { flow },
-        json: {
-          method: "oidc",
-          provider: "google",
-        },
+        json: { method: "oidc", provider: "google" },
       });
 
-      switch (response.status) {
-        case 200: {
-          const body = await response.json();
-
-          console.log(
-            "login google",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          session.set("session_token", body.session_token);
-
-          return redirect(url.searchParams.get("from") || "/", {
-            status: 303,
-            headers: {
-              "set-cookie": await sessionStorage.commitSession(session),
-            },
-          });
-        }
-        case 400: {
-          const body = await response.json();
-
-          console.log(
-            "login google",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          const { messages = [] } = body.ui;
-
-          if (messages.length > 0) {
-            switch (messages[0].type) {
-              case "error": {
-                return json<ActionData>({
-                  state: "failure",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-              case "info":
-              case "success": {
-                return json<ActionData>({
-                  state: "success",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-            }
-          }
-
-          break;
-        }
-        case 422: {
-          const body = await response.json();
-
-          console.log(
-            "login google",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          if (body.redirect_browser_to !== undefined) {
-            return redirect(body.redirect_browser_to, {
-              status: 303,
-              headers: {
-                "set-cookie": await sessionStorage.commitSession(session),
-              },
-            });
-          }
-
-          if (body.error !== undefined) {
-            return json<ActionData>({
-              state: "failure",
-              // TODO: figure out why openapi + fets produce the incorrect type
-              // @ts-ignore
-              message: body.error.message,
-
-              defaultValues: guard.defaultValues,
-            });
-          }
-
-          break;
-        }
-        case 410:
-        // 403?
-        default: {
-          const body = await response.json();
-
-          console.log(
-            "login google",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          return json<ActionData>({
-            state: "failure",
-            message: body.error.message,
-
-            defaultValues: guard.defaultValues,
-          });
-        }
-      }
-
       break;
-    }
-    case "github": {
-      const response = await kratos["/self-service/login"].post({
+    case "github":
+      response = await updateLoginFlow({
         query: { flow },
-        json: {
-          method: "oidc",
-          provider: "github",
-        },
+        json: { method: "oidc", provider: "github" },
       });
 
-      switch (response.status) {
-        case 200: {
-          const body = await response.json();
-
-          console.log(
-            "login github",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          session.set("session_token", body.session_token);
-
-          return redirect(url.searchParams.get("from") || "/", {
-            status: 303,
-            headers: {
-              "set-cookie": await sessionStorage.commitSession(session),
-            },
-          });
-        }
-        case 400: {
-          const body = await response.json();
-
-          console.log(
-            "login github",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          const { messages = [] } = body.ui;
-
-          if (messages.length > 0) {
-            switch (messages[0].type) {
-              case "error": {
-                return json<ActionData>({
-                  state: "failure",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-              case "info":
-              case "success": {
-                return json<ActionData>({
-                  state: "success",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-            }
-          }
-
-          break;
-        }
-        case 422: {
-          const body = await response.json();
-
-          console.log(
-            "login github",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          if (body.redirect_browser_to !== undefined) {
-            return redirect(body.redirect_browser_to, {
-              status: 303,
-              headers: {
-                "set-cookie": await sessionStorage.commitSession(session),
-              },
-            });
-          }
-
-          if (body.error !== undefined) {
-            return json<ActionData>({
-              state: "failure",
-              // TODO: figure out why openapi + fets produce the incorrect type
-              // @ts-ignore
-              message: body.error.message,
-
-              defaultValues: guard.defaultValues,
-            });
-          }
-
-          break;
-        }
-        case 410:
-        // 403?
-        default: {
-          const body = await response.json();
-
-          console.log(
-            "login github",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          return json<ActionData>({
-            state: "failure",
-            message: body.error.message,
-
-            defaultValues: guard.defaultValues,
-          });
-        }
-      }
-
       break;
-    }
-    case "facebook": {
-      const response = await kratos["/self-service/login"].post({
+    case "facebook":
+      response = await updateLoginFlow({
         query: { flow },
-        json: {
-          method: "oidc",
-          provider: "facebook",
-        },
+        json: { method: "oidc", provider: "facebook" },
       });
 
-      switch (response.status) {
-        case 200: {
-          const body = await response.json();
-
-          console.log(
-            "facebook",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          session.set("session_token", body.session_token);
-
-          return redirect(url.searchParams.get("from") || "/", {
-            status: 303,
-            headers: {
-              "set-cookie": await sessionStorage.commitSession(session),
-            },
-          });
-        }
-        case 400: {
-          const body = await response.json();
-
-          console.log(
-            "facebook",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          const { messages = [] } = body.ui;
-
-          if (messages.length > 0) {
-            switch (messages[0].type) {
-              case "error": {
-                return json<ActionData>({
-                  state: "failure",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-              case "info":
-              case "success": {
-                return json<ActionData>({
-                  state: "success",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-            }
-          }
-
-          break;
-        }
-        case 422: {
-          const body = await response.json();
-
-          console.log(
-            "facebook",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          if (body.redirect_browser_to !== undefined) {
-            return redirect(body.redirect_browser_to, {
-              status: 303,
-              headers: {
-                "set-cookie": await sessionStorage.commitSession(session),
-              },
-            });
-          }
-
-          if (body.error !== undefined) {
-            return json<ActionData>({
-              state: "failure",
-              // TODO: figure out why openapi + fets produce the incorrect type
-              // @ts-ignore
-              message: body.error.message,
-
-              defaultValues: guard.defaultValues,
-            });
-          }
-
-          break;
-        }
-        case 410:
-        // 403?
-        default: {
-          const body = await response.json();
-
-          console.log(
-            "facebook",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          return json<ActionData>({
-            state: "failure",
-            message: body.error.message,
-
-            defaultValues: guard.defaultValues,
-          });
-        }
-      }
-
       break;
-    }
-    case "apple": {
-      const response = await kratos["/self-service/login"].post({
+    case "apple":
+      response = await updateLoginFlow({
         query: { flow },
-        json: {
-          method: "oidc",
-          provider: "apple",
-        },
+        json: { method: "oidc", provider: "apple" },
       });
 
-      switch (response.status) {
-        case 200: {
-          const body = await response.json();
-
-          console.log(
-            "login apple",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          session.set("session_token", body.session_token);
-
-          return redirect(url.searchParams.get("from") || "/", {
-            status: 303,
-            headers: {
-              "set-cookie": await sessionStorage.commitSession(session),
-            },
-          });
-        }
-        case 400: {
-          const body = await response.json();
-
-          console.log(
-            "login apple",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          const { messages = [] } = body.ui;
-
-          if (messages.length > 0) {
-            switch (messages[0].type) {
-              case "error": {
-                return json<ActionData>({
-                  state: "failure",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-              case "info":
-              case "success": {
-                return json<ActionData>({
-                  state: "success",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-            }
-          }
-
-          break;
-        }
-        case 422: {
-          const body = await response.json();
-
-          console.log(
-            "login apple",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          if (body.redirect_browser_to !== undefined) {
-            return redirect(body.redirect_browser_to, {
-              status: 303,
-              headers: {
-                "set-cookie": await sessionStorage.commitSession(session),
-              },
-            });
-          }
-
-          if (body.error !== undefined) {
-            return json<ActionData>({
-              state: "failure",
-              // TODO: figure out why openapi + fets produce the incorrect type
-              // @ts-ignore
-              message: body.error.message,
-
-              defaultValues: guard.defaultValues,
-            });
-          }
-
-          break;
-        }
-        case 410:
-        // 403?
-        default: {
-          const body = await response.json();
-
-          console.log(
-            "login apple",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          return json<ActionData>({
-            state: "failure",
-            message: body.error.message,
-
-            defaultValues: guard.defaultValues,
-          });
-        }
-      }
-
       break;
-    }
   }
 
-  return json<ActionData>({
-    state: "failure",
-    message: "Unsupported operation",
+  switch (response.type) {
+    case "failure":
+      return json({
+        type: "failure",
+        message: response.message,
 
-    defaultValues: guard.defaultValues,
-  });
+        defaultValues: guard.defaultValues,
+      });
+    case "info":
+      return json({
+        type: "info",
+        message: response.message,
+
+        defaultValues: guard.defaultValues,
+      });
+    case "success":
+      session.set("session_token", response.session_token);
+
+      return redirectToHome(guard);
+    case "redirect":
+      return redirect(response.redirect_browser_to, {
+        status: 303,
+        headers: {
+          "set-cookie": await sessionStorage.commitSession(session),
+        },
+      });
+  }
 };

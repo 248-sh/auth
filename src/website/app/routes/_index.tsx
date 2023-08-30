@@ -15,7 +15,9 @@ import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { KratosIdentity, KratosSession } from "~/openapi/kratos";
-import { kratos, listMySessions } from "~/ory.server";
+import { disableMySession } from "~/services/kratos/disableMySession";
+import { exchangeSessionToken } from "~/services/kratos/exchangeSessionToken";
+import { listMySessions } from "~/services/kratos/listMySessions";
 import { sessionStorage } from "~/session.server";
 import {
   ActionData,
@@ -23,6 +25,7 @@ import {
   join,
   LoaderData,
   loaderGuard,
+  redirectToHome,
   redirectToLogin,
 } from "~/utils";
 import { CurrentSession } from "./index/CurrentSession";
@@ -48,8 +51,6 @@ export const loader = async ({
 > => {
   const guard = await loaderGuard(request);
 
-  console.log("_index url", guard.url);
-
   const { url, session } = guard;
 
   const code = url.searchParams.get("code");
@@ -59,53 +60,35 @@ export const loader = async ({
   );
 
   if (code && session_token_exchange_code) {
-    const response = await kratos["/sessions/token-exchange"].get({
+    const response = await exchangeSessionToken({
       query: {
         init_code: session_token_exchange_code,
         return_to_code: code,
       },
     });
 
-    if (response.ok === false) {
-      const body = await response.json();
+    switch (response.type) {
+      case "failure":
+        throw serverError(response.message);
+      case "success":
+        session.unset("session_token_exchange_code");
+        session.set("session_token", response.session_token);
 
-      console.log(
-        "_index loader",
-        response.status,
-        JSON.stringify(body, null, 2)
-      );
-
-      throw serverError(body.error.message);
+        return redirectToHome(guard);
     }
-
-    const body = await response.json();
-
-    console.log(
-      "_index loader",
-      response.status,
-      JSON.stringify(body, null, 2)
-    );
-
-    session.unset("session_token_exchange_code");
-
-    session.set("session_token", body.session_token);
-
-    return redirect(url.searchParams.get("from") || "/", {
-      status: 303,
-      headers: {
-        "set-cookie": await sessionStorage.commitSession(session),
-      },
-    });
   }
 
-  if (guard.state === "without-identity") {
+  if (guard.type === "without-identity") {
     return redirectToLogin(guard);
   }
 
   const { identity: me, csrf } = guard;
 
   const [sessions, tuples] = await Promise.all([
-    listMySessions(session.get("session_token"), 1),
+    listMySessions({
+      headers: { "X-Session-Token": session.get("session_token") },
+      query: { per_page: 100, page: 1 },
+    }),
     // keto.getRelationships({ subjectId: userId }),
     null,
   ]);
@@ -167,9 +150,9 @@ export const action = async ({
 }: ActionArgs): Promise<TypedJsonResponse<ActionData>> => {
   const guard = await actionGuard(request, actionSchema);
 
-  if (guard.state === "not-valid") {
-    return json<ActionData>({
-      state: "not-valid",
+  if (guard.type === "not-valid") {
+    return json({
+      type: "not-valid",
       messages: guard.messages,
 
       defaultValues: guard.defaultValues,
@@ -186,39 +169,32 @@ export const action = async ({
       });
     }
     case "remove-session": {
-      const response = await kratos["/sessions/{id}"].delete({
+      const response = await disableMySession({
         headers: { "X-Session-Token": session.get("session_token") },
         params: { id: data.sessionId },
       });
 
-      if (response.ok === false) {
-        const body = await response.json();
+      switch (response.type) {
+        case "failure":
+          return json({
+            type: "failure",
+            message: response.message,
 
-        console.log(
-          "_index remove-session",
-          response.status,
-          JSON.stringify(body, null, 2)
-        );
+            defaultValues: guard.defaultValues,
+          });
+        case "success":
+          return json({
+            type: "success",
+            message: response.message,
 
-        return json<ActionData>({
-          state: "failure",
-          message: body.error.message,
-
-          defaultValues: guard.defaultValues,
-        });
+            defaultValues: guard.defaultValues,
+          });
       }
-
-      return json<ActionData>({
-        state: "success",
-        message: `Revoked session ${data.sessionId}`,
-
-        defaultValues: guard.defaultValues,
-      });
     }
   }
 
-  return json<ActionData>({
-    state: "failure",
+  return json({
+    type: "failure",
     message: "Unsupported operation",
 
     defaultValues: guard.defaultValues,

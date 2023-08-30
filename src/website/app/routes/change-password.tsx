@@ -8,7 +8,9 @@ import { serverError } from "remix-utils";
 import { z } from "zod";
 import { Footer } from "~/layout/Footer";
 import { Page } from "~/layout/Page";
-import { kratos } from "~/ory.server";
+import { createNativeRecoveryFlow } from "~/services/kratos/createNativeRecoveryFlow";
+import { getRecoveryFlow } from "~/services/kratos/getRecoveryFlow";
+import { updateRecoveryFlow } from "~/services/kratos/updateRecoveryFlow";
 import { sessionStorage } from "~/session.server";
 import {
   ActionData,
@@ -27,7 +29,7 @@ export const loader = async ({
 }: LoaderArgs): Promise<TypedJsonResponse<LoaderData>> => {
   const guard = await loaderGuard(request);
 
-  if (guard.state === "with-identity") {
+  if (guard.type === "with-identity") {
     return redirectToHome(guard);
   }
 
@@ -36,52 +38,45 @@ export const loader = async ({
   const flow = url.searchParams.get("flow");
 
   if (flow === null) {
-    const response = await kratos["/self-service/recovery/api"].get();
+    const response = await createNativeRecoveryFlow({});
 
-    if (response.ok === false) {
-      const body = await response.json();
+    switch (response.type) {
+      case "failure":
+        throw serverError(response.message);
+      case "success":
+        url.searchParams.set("flow", response.flow);
 
-      console.log(
-        "change-password loader",
-        response.status,
-        JSON.stringify(body, null, 2)
-      );
-
-      throw serverError(body.error.message);
+        return redirect(url.toString(), {
+          status: 303,
+          headers: {
+            "set-cookie": await sessionStorage.commitSession(session),
+          },
+        });
     }
-
-    const body = await response.json();
-
-    console.log(
-      "change-password loader",
-      response.status,
-      JSON.stringify(body, null, 2)
-    );
-
-    url.searchParams.set("flow", body.id);
-
-    return redirect(url.toString(), {
-      status: 303,
-      headers: { "set-cookie": await sessionStorage.commitSession(session) },
-    });
   }
 
-  const response = await kratos["/self-service/recovery/flows"].get({
+  const response = await getRecoveryFlow({
     query: { id: flow },
   });
 
-  if (response.ok === false) {
-    url.searchParams.delete("flow");
+  switch (response.type) {
+    case "failure":
+      url.searchParams.delete("flow");
 
-    return redirect(url.toString(), {
-      status: 303,
-      headers: { "set-cookie": await sessionStorage.commitSession(session) },
-    });
+      return redirect(url.toString(), {
+        status: 303,
+        headers: { "set-cookie": await sessionStorage.commitSession(session) },
+      });
+    case "success":
+      return json(
+        { csrf },
+        {
+          headers: {
+            "set-cookie": await sessionStorage.commitSession(session),
+          },
+        }
+      );
   }
-  return json(
-    { csrf },
-    { headers: { "set-cookie": await sessionStorage.commitSession(session) } }
-  );
 };
 
 export type LoaderResponse = typeof loader;
@@ -116,9 +111,9 @@ export const action = async ({
 }: ActionArgs): Promise<TypedJsonResponse<ActionData>> => {
   const guard = await actionGuard(request, actionSchema);
 
-  if (guard.state === "not-valid") {
-    return json<ActionData>({
-      state: "not-valid",
+  if (guard.type === "not-valid") {
+    return json({
+      type: "not-valid",
       messages: guard.messages,
 
       defaultValues: guard.defaultValues,
@@ -130,8 +125,8 @@ export const action = async ({
   const flow = url.searchParams.get("flow");
 
   if (flow === null) {
-    return json<ActionData>({
-      state: "failure",
+    return json({
+      type: "failure",
       message: "Missing required parameter",
 
       defaultValues: guard.defaultValues,
@@ -140,7 +135,7 @@ export const action = async ({
 
   switch (data.type) {
     case "request-change-password": {
-      const response = await kratos["/self-service/recovery"].post({
+      const response = await updateRecoveryFlow({
         query: { flow },
         json: {
           method: "code",
@@ -148,85 +143,41 @@ export const action = async ({
         },
       });
 
-      switch (response.status) {
-        case 200:
-        case 400: {
-          const body = await response.json();
-
-          console.log(
-            "request-change-password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          const { messages = [] } = body.ui;
-
-          if (messages.length > 0) {
-            switch (messages[0].type) {
-              case "error": {
-                return json<ActionData>({
-                  state: "failure",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-              case "info":
-              case "success": {
-                return json<ActionData>({
-                  state: "success",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-            }
-          }
-
-          break;
-        }
-        case 422: {
-          const body = await response.json();
-
-          console.log(
-            "request-change-password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          // return json<ActionData>({
-          //   state: "failure",
-          //   message: body.error.message,
-
-          //   defaultValues: guard.defaultValues,
-          // });
-
-          break;
-        }
-        case 410:
-        // 403?
-        default: {
-          const body = await response.json();
-
-          console.log(
-            "request-change-password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          return json<ActionData>({
-            state: "failure",
-            message: body.error.message,
+      switch (response.type) {
+        case "failure":
+          return json({
+            type: "failure",
+            message: response.message,
 
             defaultValues: guard.defaultValues,
           });
-        }
+        case "info":
+          return json({
+            type: "info",
+            message: response.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        case "success":
+          return json({
+            type: "success",
+            message: response.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        case "redirect":
+          return redirect(response.redirect_browser_to, {
+            status: 303,
+            headers: {
+              "set-cookie": await sessionStorage.commitSession(session),
+            },
+          });
       }
 
       break;
     }
     case "change-password": {
-      const response = await kratos["/self-service/recovery"].post({
+      const response = await updateRecoveryFlow({
         query: { flow },
         json: {
           method: "code",
@@ -234,87 +185,43 @@ export const action = async ({
         },
       });
 
-      switch (response.status) {
-        case 200:
-        case 400: {
-          const body = await response.json();
-
-          console.log(
-            "change-password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          const { messages = [] } = body.ui;
-
-          if (messages.length > 0) {
-            switch (messages[0].type) {
-              case "error": {
-                return json<ActionData>({
-                  state: "failure",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-              case "info":
-              case "success": {
-                return json<ActionData>({
-                  state: "success",
-                  message: messages[0].text,
-
-                  defaultValues: guard.defaultValues,
-                });
-              }
-            }
-          }
-
-          break;
-        }
-        case 422: {
-          const body = await response.json();
-
-          console.log(
-            "change-password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          // return json<ActionData>({
-          //   state: "failure",
-          //   message: body.error.message,
-
-          //   defaultValues: guard.defaultValues,
-          // });
-
-          break;
-        }
-        case 410:
-        // 403?
-        default: {
-          const body = await response.json();
-
-          console.log(
-            "change-password",
-            response.status,
-            JSON.stringify(body, null, 2)
-          );
-
-          return json<ActionData>({
-            state: "failure",
-            message: body.error.message,
+      switch (response.type) {
+        case "failure":
+          return json({
+            type: "failure",
+            message: response.message,
 
             defaultValues: guard.defaultValues,
           });
-        }
+        case "info":
+          return json({
+            type: "info",
+            message: response.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        case "success":
+          return json({
+            type: "success",
+            message: response.message,
+
+            defaultValues: guard.defaultValues,
+          });
+        case "redirect":
+          return redirect(response.redirect_browser_to, {
+            status: 303,
+            headers: {
+              "set-cookie": await sessionStorage.commitSession(session),
+            },
+          });
       }
 
       break;
     }
   }
 
-  return json<ActionData>({
-    state: "failure",
+  return json({
+    type: "failure",
     message: "Unsupported operation",
 
     defaultValues: guard.defaultValues,

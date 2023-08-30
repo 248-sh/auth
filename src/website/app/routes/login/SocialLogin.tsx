@@ -11,22 +11,6 @@ import { ServerMessage } from "~/layout/ServerMessage";
 import { ActionData, LoaderData } from "~/utils";
 import { SocialButtons } from "../social/SocialButtons";
 
-// const initialState = {
-//   passwordVisible: false,
-// };
-// const reducer = produce((draft, { type, payload }) => {
-//   console.log("reducer type", type, payload);
-
-//   switch (type) {
-//     case "show-password":
-//       draft.passwordVisible = true;
-//       break;
-//     case "hide-password":
-//       draft.passwordVisible = false;
-//       break;
-//   }
-// });
-
 export const SocialLogin: FC = () => {
   const { csrf } = useLoaderData<LoaderData>();
   const fetcher = useFetcher<ActionData>();

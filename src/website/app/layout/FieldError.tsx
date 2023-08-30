@@ -7,7 +7,7 @@ export const FieldError: FC<{ name: string }> = ({ name }) => {
 
   if (
     data === undefined ||
-    data.state !== "not-valid" ||
+    data.type !== "not-valid" ||
     name in data.messages === false
   ) {
     return null;

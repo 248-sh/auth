@@ -83,7 +83,7 @@ const SessionItem: FC<{ session: KratosSession }> = ({ session }) => {
               disabled={submitting}
               className={join(
                 "relative -ml-px inline-flex items-center rounded-sm border border-slate-300 bg-orange-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-orange-100 focus:z-10 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500",
-                submitting ? "opacity-50" : ""
+                submitting ? "pointer-events-none opacity-50" : ""
               )}
             >
               {submitting ? "Signing out.." : "Sign out"}

@@ -1,4 +1,4 @@
-import { NormalizeOAS, OASComponentSchema, OASModel } from "fets";
+import { NormalizeOAS, OASModel } from "fets";
 
 const schema = {
   components: {
@@ -6887,5 +6887,6 @@ export default schema;
 
 export type Kratos = NormalizeOAS<typeof schema>;
 
+// TODO: remove me!
 export type KratosIdentity = OASModel<Kratos, "identity">;
 export type KratosSession = OASModel<Kratos, "session">;

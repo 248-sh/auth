@@ -1,4 +1,8 @@
-import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/20/solid";
+import {
+  CheckCircleIcon,
+  InformationCircleIcon,
+  XCircleIcon,
+} from "@heroicons/react/20/solid";
 import { FC } from "react";
 import { useFetcherData } from "~/hooks/useFetcherContext";
 
@@ -11,7 +15,7 @@ export const ServerMessage: FC = () => {
 
   console.log("ServerMessage data", data);
 
-  if (data.state === "success") {
+  if (data.type === "success") {
     return (
       <div className="flex rounded-md bg-green-50 p-4 space-x-3">
         <CheckCircleIcon
@@ -25,7 +29,21 @@ export const ServerMessage: FC = () => {
       </div>
     );
   }
-  if (data.state === "failure") {
+  if (data.type === "info") {
+    return (
+      <div className="flex rounded-md bg-yellow-50 p-4 space-x-3">
+        <InformationCircleIcon
+          className="h-5 w-5 text-yellow-400"
+          aria-hidden="true"
+        />
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-yellow-800">Info</h3>
+          <div className="text-sm text-yellow-700">{data.message}</div>
+        </div>
+      </div>
+    );
+  }
+  if (data.type === "failure") {
     return (
       <div className="flex rounded-md bg-red-50 p-4 space-x-3">
         <XCircleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />

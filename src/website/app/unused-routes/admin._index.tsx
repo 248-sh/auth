@@ -19,7 +19,7 @@ import { Section } from "~/layout/Section";
 import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { KratosIdentity } from "~/openapi/kratos";
-import { listIdentities } from "~/ory.server";
+import { listIdentities } from "~/services/kratos/listIdentities";
 import { LoaderData, loaderGuard, redirectToLogin } from "~/utils";
 
 export { ErrorBoundary } from "~/ErrorBoundary";
@@ -37,7 +37,7 @@ export const loader = async ({
 > => {
   const guard = await loaderGuard(request);
 
-  if (guard.state === "without-identity") {
+  if (guard.type === "without-identity") {
     return redirectToLogin(guard);
   }
 
@@ -45,7 +45,12 @@ export const loader = async ({
 
   // TODO: check session and permissions
 
-  const [users] = await Promise.all([listIdentities(1)]);
+  const [users] = await Promise.all([
+    listIdentities({
+      headers: { Authorization: "" },
+      query: { per_page: 100, page: 1 },
+    }),
+  ]);
 
   return json({ csrf, users } as const);
 };

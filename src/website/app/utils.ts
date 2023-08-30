@@ -2,21 +2,15 @@ import { Session } from "@remix-run/node";
 import { redirect } from "remix-typedjson";
 import { createAuthenticityToken, verifyAuthenticityToken } from "remix-utils";
 import { z } from "zod";
-import { KratosSession } from "./openapi/kratos";
-import { kratos } from "./ory.server";
+import {
+  toSession,
+  WithIdentity,
+  WithoutIdentity,
+} from "./services/kratos/toSession";
 import { sessionStorage } from "./session.server";
 
 export const join = (...parts: (string | undefined)[]) =>
   parts.filter(Boolean).join(" ");
-
-type WithoutIdentity = {
-  state: "without-identity";
-  message: string;
-};
-type WithIdentity = {
-  state: "with-identity";
-  identity: KratosSession;
-};
 
 export type LoaderData = {
   csrf: string;
@@ -33,47 +27,39 @@ export const loaderGuard = async (request: Request): Promise<LoaderGuard> => {
 
   const url = new URL(request.url);
 
-  const me = await kratos["/sessions/whoami"].get({
+  const me = await toSession({
     headers: { "X-Session-Token": session.get("session_token") },
   });
 
-  let guard: WithoutIdentity | WithIdentity;
-
-  if (me.ok === false) {
-    const body = await me.json();
-
-    guard = { state: "without-identity", message: body.error.message };
-  } else {
-    const body = await me.json();
-
-    guard = { state: "with-identity", identity: body };
-  }
-
   const csrf = createAuthenticityToken(session, "csrf");
 
-  return { url, session, csrf, ...guard };
+  return { url, session, csrf, ...me };
 };
 
 type Input = Record<string, string | undefined>;
 
 type Success = {
-  state: "success";
+  type: "success";
   message: string;
 };
 type Failure = {
-  state: "failure";
+  type: "failure";
+  message: string;
+};
+type Info = {
+  type: "info";
   message: string;
 };
 type NotValid = {
-  state: "not-valid";
+  type: "not-valid";
   messages: Record<string, string>;
 };
 type Valid<T extends z.ZodType<any, any, any>> = {
-  state: "valid";
+  type: "valid";
   data: z.infer<T>;
 };
 
-export type ActionData = (Success | Failure | NotValid) & {
+export type ActionData = (Success | Failure | Info | NotValid) & {
   defaultValues: Input;
 };
 
@@ -85,7 +71,7 @@ const schemaGuard = <S extends z.ZodType<any, any, any>>(
 
   if (parsed.success === false) {
     return {
-      state: "not-valid",
+      type: "not-valid",
       messages: parsed.error.issues.reduce((memo, issue) => {
         memo[issue.path.join(".")] = issue.message;
         return memo;
@@ -93,7 +79,7 @@ const schemaGuard = <S extends z.ZodType<any, any, any>>(
     };
   }
 
-  return { state: "valid", data: parsed.data };
+  return { type: "valid", data: parsed.data };
 };
 
 export type ActionGuard<S extends z.ZodType<any, any, any>> = (
@@ -132,7 +118,13 @@ export const redirectToLogin = async ({ url, session }: LoaderGuard) => {
     headers: { "set-cookie": await sessionStorage.commitSession(session) },
   });
 };
-export const redirectToHome = async ({ url, session }: LoaderGuard) => {
+export const redirectToHome = async ({
+  url,
+  session,
+}: {
+  url: URL;
+  session: Session;
+}) => {
   const from = url.searchParams.get("from") || "/";
 
   return redirect(from, {

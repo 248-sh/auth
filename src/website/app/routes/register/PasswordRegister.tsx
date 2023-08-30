@@ -14,22 +14,6 @@ import { TextLink } from "~/layout/TextLink";
 import { RegisterPasswordInput } from "~/routes/register/RegisterPasswordInput";
 import { ActionData, LoaderData } from "~/utils";
 
-// const initialState = {
-//   passwordVisible: false,
-// };
-// const reducer = produce((draft, { type, payload }) => {
-//   console.log("reducer type", type, payload);
-
-//   switch (type) {
-//     case "show-password":
-//       draft.passwordVisible = true;
-//       break;
-//     case "hide-password":
-//       draft.passwordVisible = false;
-//       break;
-//   }
-// });
-
 export const PasswordRegister: FC = () => {
   const { csrf } = useLoaderData<LoaderData>();
   const fetcher = useFetcher<ActionData>();
