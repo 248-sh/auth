@@ -4,12 +4,15 @@ import { kratos } from "~/services/kratos/client";
 
 type Success = { type: "success"; session_token: string };
 type Failure = { type: "failure"; message: string };
+type Verify = { type: "verify"; flow: string; email: string };
 type Info = { type: "info"; message: string };
 type Redirect = { type: "redirect"; redirect_browser_to: string };
 
 export const updateRegistrationFlow = async (
-  request: Simplify<OASRequestParams<Kratos, "/self-service/registration", "post">>
-): Promise<Success | Failure | Info | Redirect> => {
+  request: Simplify<
+    OASRequestParams<Kratos, "/self-service/registration", "post">
+  >
+): Promise<Success | Failure | Verify | Info | Redirect> => {
   const response = await kratos["/self-service/registration"].post(request);
 
   switch (response.status) {
@@ -27,6 +30,21 @@ export const updateRegistrationFlow = async (
           type: "failure",
           message: "Something went wrong",
         };
+      }
+
+      if (body.continue_with !== undefined && body.continue_with) {
+        for (const item of body.continue_with) {
+          if (item.action === "show_verification_ui") {
+            return {
+              type: "verify",
+              // TODO: figure out why openapi + fets produce the incorrect type
+              // @ts-ignore
+              flow: item.flow.id,
+              // @ts-ignore
+              email: item.flow.verifiable_address,
+            };
+          }
+        }
       }
 
       return {

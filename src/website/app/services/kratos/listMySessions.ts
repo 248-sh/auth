@@ -8,9 +8,10 @@ type Success = {
 };
 type Failure = { type: "failure"; message: string };
 
+export type ListMySessions = Success | Failure;
 export const listMySessions = async (
   request: Simplify<OASRequestParams<Kratos, "/sessions", "get">>
-): Promise<Success | Failure> => {
+): Promise<ListMySessions> => {
   const response = await kratos["/sessions"].get(request);
 
   if (response.ok === false) {

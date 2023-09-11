@@ -1,5 +1,4 @@
 import { CalendarIcon } from "@heroicons/react/20/solid";
-import { Link } from "@remix-run/react";
 import { formatDistance, isAfter, parseISO } from "date-fns";
 import { FC, useState } from "react";
 import {
@@ -12,11 +11,30 @@ import { SectionHeader } from "~/layout/SectionHeader";
 import { SectionItem } from "~/layout/SectionItem";
 import { ServerMessage } from "~/layout/ServerMessage";
 import { KratosSession } from "~/openapi/kratos";
+import { ListMySessions } from "~/services/kratos/listMySessions";
 import { ActionData, join, LoaderData } from "~/utils";
 import { SessionDetails } from "./SessionDetails";
 
-export const OtherSessions: FC<{ sessions: KratosSession[] }> = ({ sessions }) => {
-  const [selectedSession, setSelectedSession] = useState<KratosSession | null>(null);
+export const OtherSessions: FC<{ sessions: ListMySessions }> = ({
+  sessions,
+}) => {
+  const [selectedSession, setSelectedSession] = useState<KratosSession | null>(
+    null
+  );
+
+  if (sessions.type === "failure") {
+    return (
+      <Section>
+        <SectionHeader
+          title="Other Sessions"
+          description="This information will be displayed publicly so be careful what you share."
+        />
+        <SectionItem withStripe>
+          <p>couldn't load sessions: {sessions.message}</p>
+        </SectionItem>
+      </Section>
+    );
+  }
 
   return (
     <>
@@ -25,17 +43,16 @@ export const OtherSessions: FC<{ sessions: KratosSession[] }> = ({ sessions }) =
           title="Other Sessions"
           description="This information will be displayed publicly so be careful what you share."
         />
-
-        {sessions.map((session, i) => (
+        {sessions.identities.map((session, i) => (
           // <Link
           //   key={session.id}
           //   to="#"
           //   onClick={() => setSelectedSession(session)}
           //   className="block"
           // >
-            <SectionItem key={session.id} withStripe={i % 2 === 0}>
-              <SessionItem session={session} />
-            </SectionItem>
+          <SectionItem key={session.id} withStripe={i % 2 === 0}>
+            <SessionItem session={session} />
+          </SectionItem>
           // </Link>
         ))}
       </Section>

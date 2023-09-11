@@ -205,6 +205,14 @@ export const action = async ({
       session.set("session_token", response.session_token);
 
       return redirectToHome(guard);
+    // case "verify":
+    //   return json({
+    //     type: "verify",
+    //     flow: response.flow,
+    //     email: response.email,
+
+    //     defaultValues: guard.defaultValues,
+    //   });
     case "redirect":
       return redirect(response.redirect_browser_to, {
         status: 303,

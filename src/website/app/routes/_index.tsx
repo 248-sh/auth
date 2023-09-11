@@ -17,7 +17,10 @@ import { SectionItem } from "~/layout/SectionItem";
 import { KratosIdentity, KratosSession } from "~/openapi/kratos";
 import { disableMySession } from "~/services/kratos/disableMySession";
 import { exchangeSessionToken } from "~/services/kratos/exchangeSessionToken";
-import { listMySessions } from "~/services/kratos/listMySessions";
+import {
+  ListMySessions,
+  listMySessions,
+} from "~/services/kratos/listMySessions";
 import { sessionStorage } from "~/session.server";
 import {
   ActionData,
@@ -44,7 +47,7 @@ export const loader = async ({
     LoaderData & {
       user: KratosIdentity;
       currentSession: KratosSession;
-      otherSessions: KratosSession[];
+      otherSessions: ListMySessions;
       // roles: any[];
     }
   >
