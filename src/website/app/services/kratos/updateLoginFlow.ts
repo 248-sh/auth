@@ -17,7 +17,7 @@ export const updateLoginFlow = async (
       const body = await response.json();
 
       console.log(
-        "updateLoginFlow password",
+        "updateLoginFlow",
         response.status,
         JSON.stringify(body, null, 2)
       );
@@ -38,7 +38,7 @@ export const updateLoginFlow = async (
       const body = await response.json();
 
       console.log(
-        "updateLoginFlow password",
+        "updateLoginFlow",
         response.status,
         JSON.stringify(body, null, 2)
       );
@@ -69,7 +69,7 @@ export const updateLoginFlow = async (
       const body = await response.json();
 
       console.log(
-        "updateLoginFlow password",
+        "updateLoginFlow",
         response.status,
         JSON.stringify(body, null, 2)
       );
@@ -98,7 +98,7 @@ export const updateLoginFlow = async (
       const body = await response.json();
 
       console.log(
-        "updateLoginFlow password",
+        "updateLoginFlow",
         response.status,
         JSON.stringify(body, null, 2)
       );

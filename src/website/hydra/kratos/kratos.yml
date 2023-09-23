@@ -55,6 +55,21 @@ selfservice:
                   essential: true
                 family_name: null
                 hd: null # If you want the Google Workspace domain
+    webauthn:
+      enabled: true
+      config:
+        # If set to true will use WebAuthn for passwordless flows intead of multi-factor authentication.
+        passwordless: true
+        rp:
+          # This MUST be your root domain (not a subdomain)
+          id: localhost
+          # This MUST be the exact URL of the page which will prompt for WebAuthn!
+          # Only the scheme (https / http), host (auth.example.org), and port (4455) are relevant. The
+          # path is irrelevant.
+          origins:
+            - http://localhost:3000
+          # A display name which will be shown to the user on her/his device.
+          display_name: Ory
 
   flows:
     # settings:
@@ -90,6 +105,9 @@ selfservice:
           hooks:
             - hook: show_verification_ui
         oidc:
+          hooks:
+            - hook: session
+        webauthn:
           hooks:
             - hook: session
     # error:
